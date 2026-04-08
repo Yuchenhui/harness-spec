@@ -4,7 +4,7 @@
 
 INPUT="${CLAUDE_TOOL_INPUT:-$(cat)}"
 
-if echo "$INPUT" | grep -q 'git commit'; then
+if echo "$INPUT" | grep -qE '^\s*git\s+commit\b'; then
   echo "Harness: git commit detected. Launch evaluator subagent to verify before proceeding."
 fi
 

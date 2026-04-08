@@ -25,7 +25,7 @@ fi
 RESULT=$(node -e "
 const fs = require('fs');
 try {
-  const data = JSON.parse(fs.readFileSync('$FEATURE_TESTS', 'utf8'));
+  const data = JSON.parse(fs.readFileSync(process.argv[1], 'utf8'));
   const tasks = data.tasks || [];
   const total = tasks.length;
   const passed = tasks.filter(t => t.passes).length;
@@ -41,7 +41,7 @@ try {
 } catch (e) {
   console.log(JSON.stringify({ decision: 'allow' }));
 }
-" 2>/dev/null)
+" "$FEATURE_TESTS" 2>/dev/null)
 
 # If node failed, allow exit
 if [ -z "$RESULT" ]; then

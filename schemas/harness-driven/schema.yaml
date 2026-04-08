@@ -94,9 +94,11 @@ artifacts:
 
       The review is INTERACTIVE — the user decides which suggestions to accept.
       Do NOT auto-apply changes without user confirmation.
+
+      NOTE: design.md is optional (only created for complex changes).
+      If design.md exists, include it in the review chain. If not, skip design gap analysis.
     requires:
       - specs
-      - design
 
   - id: tasks
     generates: tasks.md

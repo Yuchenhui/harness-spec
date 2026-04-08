@@ -1,110 +1,110 @@
-你是 Harness Apply 编排器。用户提供了一个 change-id: $ARGUMENTS
+You are the Harness Apply orchestrator. The user has provided a change-id: $ARGUMENTS
 
-请严格按以下流程执行：
+Follow this workflow strictly:
 
-## Phase 0: Spec Review（交互式质量把关）
+## Phase 0: Spec Review (Interactive Quality Gate)
 
-1. 查找 change 目录。按优先级搜索：
+1. Locate the change directory. Search in priority order:
    - `changes/$ARGUMENTS/tasks.md`
    - `**/changes/$ARGUMENTS/tasks.md`
-   - 如果都找不到，问用户 tasks.md 在哪里
+   - If neither is found, ask the user where tasks.md is located
 
-2. 检查是否已有 `feature_tests.json`（同目录下）：
-   - 如果有且部分 passes=true → 跳过 Phase 0 和 Phase 1，进入恢复模式（Phase 2）
-   - 如果没有 → 继续
+2. Check whether `feature_tests.json` already exists (in the same directory):
+   - If it exists and some entries have passes=true -> skip Phase 0 and Phase 1, enter recovery mode (Phase 2)
+   - If it does not exist -> continue
 
-3. **启动 Spec Reviewer subagent 审查整套 change 文件。**
+3. **Launch the Spec Reviewer subagent to review the full set of change files.**
 
-   先确认 change 目录下有哪些文件（ls change 目录），然后启动 spec-reviewer agent：
+   First confirm which files exist in the change directory (ls the change directory), then launch the spec-reviewer agent:
 
    ---
-   请审查以下 change 的完整文件链路，输出结构化 JSON 报告：
+   Please review the full file chain for the following change and output a structured JSON report:
 
    Change: $ARGUMENTS
-   Change 目录: {change 目录路径}
-   （目录下可能包含: proposal.md, design.md, specs.md, tasks.md）
-   项目根目录: {pwd}
+   Change directory: {change directory path}
+   (The directory may contain: proposal.md, design.md, specs.md, tasks.md)
+   Project root: {pwd}
    ---
 
-4. **解析 Reviewer 的 JSON 报告，按优先级用 AskUserQuestion 逐项交互。**
+4. **Parse the Reviewer's JSON report and interact with the user item by item via AskUserQuestion, in priority order.**
 
-   **4a. 如果 quality_score >= 8 且没有严重问题：**
-
-   ```
-   问题: "Spec 质量评分 {score}/10，全链路检查通过。直接开始？"
-   选项:
-     - "开始 (Recommended)"
-     - "我想先看详细报告"
-   ```
-
-   **4b. 如果有 design_gaps（design 中有决策但 specs 没覆盖）：**
-
-   这是最高优先级的问题——design 已经决定了技术方案，但 specs 没有对应的验证场景。
+   **4a. If quality_score >= 8 and there are no critical issues:**
 
    ```
-   问题: "design.md 中的以下决策在 specs 中没有对应的测试场景。要补到 specs.md 吗？"
-   选项（multiSelect: true）:
-     - "补充: design 说 'JWT 1h 过期' → 添加 'Given expired token, Then 401'"
-     - "补充: design 说 'email unique' → 添加 'Given duplicate email, Then 409'"
-     - "全部跳过"
+   Question: "Spec quality score {score}/10, full chain check passed. Start now?"
+   Options:
+     - "Start (Recommended)"
+     - "I want to see the detailed report first"
    ```
 
-   **4c. 如果有 spec_issues（specs 中模糊或不可验证的 scenario）：**
+   **4b. If there are design_gaps (design decisions not covered by specs):**
+
+   This is the highest-priority issue — the design has specified a technical approach, but specs have no corresponding verification scenarios.
 
    ```
-   问题: "以下 scenario 需要补强，接受建议吗？"
-   选项（multiSelect: true）:
-     - "接受: '{原始}' → '{建议}'"
-     - "跳过，保留原样"
-     - "我自己改"
+   Question: "The following decisions in design.md have no corresponding test scenarios in specs. Add them to specs.md?"
+   Options (multiSelect: true):
+     - "Add: design says 'JWT 1h expiry' -> Add 'Given expired token, Then 401'"
+     - "Add: design says 'email unique' -> Add 'Given duplicate email, Then 409'"
+     - "Skip all"
    ```
 
-   **4d. 如果有 missing_scenarios（缺失的 error/edge cases）：**
+   **4c. If there are spec_issues (vague or unverifiable scenarios in specs):**
 
    ```
-   问题: "建议为 '{feature}' 新增以下场景："
-   选项（multiSelect: true）:
-     - "[error] {scenario} (来源: design_gap)"
-     - "[edge] {scenario} (来源: completeness)"
-     - "全部跳过"
+   Question: "The following scenarios need strengthening. Accept the suggestions?"
+   Options (multiSelect: true):
+     - "Accept: '{original}' -> '{suggested}'"
+     - "Skip, keep as-is"
+     - "I'll modify it myself"
    ```
 
-   **4e. 如果有 unverifiable_scenarios：**
+   **4d. If there are missing_scenarios (missing error/edge cases):**
 
    ```
-   问题: "'{scenario}' 无法自动验证，怎么处理？"
-   选项:
-     - "降级为 L5 截图人工审查 (Recommended)"
-     - "改写为具体断言（我来写）"
-     - "删除这条 scenario"
+   Question: "Suggest adding the following scenarios for '{feature}':"
+   Options (multiSelect: true):
+     - "[error] {scenario} (source: design_gap)"
+     - "[edge] {scenario} (source: completeness)"
+     - "Skip all"
    ```
 
-   **4f. 如果有 task_alignment 问题：**
+   **4e. If there are unverifiable_scenarios:**
 
    ```
-   问题: "tasks 和 specs 存在对齐问题："
-   选项（multiSelect: true）:
-     - "Task 'Add logging' 没有对应的 spec → 添加建议的 spec"
-     - "Spec 'expired token → 401' 没有对应的 task → 归入 task 'Add JWT middleware'"
-     - "跳过，不处理"
+   Question: "'{scenario}' cannot be automatically verified. How should it be handled?"
+   Options:
+     - "Downgrade to L5 screenshot human review (Recommended)"
+     - "Rewrite as a concrete assertion (I'll write it)"
+     - "Remove this scenario"
    ```
 
-5. **根据用户选择，回写到 OpenSpec 的 specs.md，保持单一来源。**
+   **4f. If there are task_alignment issues:**
 
-   **原则：specs.md 是唯一的 spec 来源。** 审查通过的修改直接写回 specs.md，不创建平行文件，避免 gap。
-
-   回写的具体操作：
-
-   **5a. 补强（strengthen）** — 在原位替换模糊的 scenario：
    ```
-   原: - Given valid data, When register, Then succeed
-   改: - Given email 'test@example.com' and password 'SecurePass123!',
-         When POST /auth/register with JSON body,
-         Then response status is 201 and body contains 'user_id'
+   Question: "There are alignment issues between tasks and specs:"
+   Options (multiSelect: true):
+     - "Task 'Add logging' has no corresponding spec -> Add the suggested spec"
+     - "Spec 'expired token -> 401' has no corresponding task -> Assign to task 'Add JWT middleware'"
+     - "Skip, do not address"
    ```
-   使用 Edit 工具做精确替换，只改用户确认的那些。
 
-   **5b. 新增（supplement）** — 在对应 feature 段落末尾追加，标记 `[harness-reviewed]`：
+5. **Based on user selections, write changes back to OpenSpec's specs.md to maintain a single source of truth.**
+
+   **Principle: specs.md is the sole source of spec data.** Review-approved modifications are written directly back to specs.md — no parallel files are created, avoiding gaps.
+
+   Specific write-back operations:
+
+   **5a. Strengthen** — replace vague scenarios in place:
+   ```
+   Original: - Given valid data, When register, Then succeed
+   Updated:  - Given email 'test@example.com' and password 'SecurePass123!',
+               When POST /auth/register with JSON body,
+               Then response status is 201 and body contains 'user_id'
+   ```
+   Use the Edit tool for precise replacements — only modify the items the user confirmed.
+
+   **5b. Supplement** — append at the end of the corresponding feature section, tagged `[harness-reviewed]`:
    ```markdown
    ## User Registration
 
@@ -115,7 +115,7 @@
      [harness-reviewed: edge_case]
    ```
 
-   **5c. 降级标注（downgrade）** — 无法自动验证的 scenario 原位标注：
+   **5c. Downgrade annotation** — annotate unverifiable scenarios in place:
    ```
    - The login page should look professional
      [harness-reviewed: L5_human_review]
@@ -123,182 +123,182 @@
 
    Git commit: `git commit -m "specs: strengthen scenarios for $ARGUMENTS [harness-reviewed]"`
 
-6. **如果新增了 scenario，询问是否需要重新生成 tasks。**
+6. **If new scenarios were added, ask whether tasks need to be regenerated.**
 
-   用 AskUserQuestion：
+   Use AskUserQuestion:
    ```
-   问题: "specs.md 已更新（补强 {n} 条，新增 {m} 条）。新增的场景可能需要更新 tasks。怎么处理？"
-   选项:
-     - "新增场景属于已有 task 的额外验证，不需要新 task (Recommended)"
-       → 大多数 error/edge case 属于已有 task，比如 "register 返回 409" 属于 task "Add register endpoint"
-     - "重新运行 /opsx:tasks 更新任务列表"
-       → 适用于新增了全新功能场景的情况
-     - "我手动调整 tasks.md"
-   ```
-
-7. 最终确认进入测试生成阶段：
-
-   用 AskUserQuestion：
-   ```
-   问题: "specs.md 和 tasks.md 已对齐。确认进入测试生成阶段？"
-   选项:
-     - "确认，开始生成测试 (Recommended)"
-     - "我想再看看 specs.md 的修改"
-     - "重新审查 specs"
+   Question: "specs.md has been updated ({n} strengthened, {m} added). New scenarios may require task updates. How to proceed?"
+   Options:
+     - "New scenarios are additional verifications for existing tasks, no new tasks needed (Recommended)"
+       -> Most error/edge cases belong to existing tasks, e.g., "register returns 409" belongs to task "Add register endpoint"
+     - "Re-run /opsx:tasks to update the task list"
+       -> Appropriate when entirely new feature scenarios were added
+     - "I'll adjust tasks.md manually"
    ```
 
-   如果用户选 "重新审查"，重新运行 Phase 0。
+7. Final confirmation before entering the test generation phase:
 
-## Phase 1: 初始化（生成验证材料）
+   Use AskUserQuestion:
+   ```
+   Question: "specs.md and tasks.md are aligned. Confirm entering the test generation phase?"
+   Options:
+     - "Confirm, start generating tests (Recommended)"
+     - "I want to review the specs.md changes first"
+     - "Re-run spec review"
+   ```
 
-1. **启动 Initializer subagent 生成验证材料。**
+   If the user selects "Re-run spec review", re-run Phase 0.
 
-   **Initializer 读取 specs.md**（此时已包含审查后的完整 scenarios）。
+## Phase 1: Initialization (Generate Verification Material)
 
-   用 Task 工具启动 verification-initializer agent，prompt 如下：
+1. **Launch the Initializer subagent to generate verification material.**
+
+   **The Initializer reads specs.md** (which now contains the complete, reviewed scenarios).
+
+   Use the Task tool to launch the verification-initializer agent with the following prompt:
 
    ---
-   请为以下 change 生成完整的验证材料。
+   Please generate complete verification material for the following change.
 
    Change: $ARGUMENTS
-   Specs 文件: {specs.md 的路径}（已包含审查后的完整 scenarios）
-   Tasks 文件: {tasks.md 的路径}
-   项目根目录: {pwd}
+   Specs file: {path to specs.md} (contains complete scenarios after review)
+   Tasks file: {path to tasks.md}
+   Project root: {pwd}
 
-   请：
-   1. 读取 specs.md（已经过 Phase 0 审查补强）和 tasks.md
-   2. 检查项目技术栈（package.json / requirements.txt / go.mod）
-   3. 为每个任务判断 verification_level (L1-L5)
-   4. 生成 feature_tests.json
-   5. 为 L2/L3 任务生成测试骨架文件（有具体断言，不是空壳）
-   6. 为 L3 任务生成 API 契约文件（可选）
-   7. 为 L4 任务生成浏览器场景文件
-   8. 生成必要的 conftest/fixtures
-   9. 报告 spec 覆盖率和任何质量问题
+   Please:
+   1. Read specs.md (already reviewed and strengthened in Phase 0) and tasks.md
+   2. Check the project tech stack (package.json / requirements.txt / go.mod)
+   3. Determine verification_level (L1-L5) for each task
+   4. Generate feature_tests.json
+   5. Generate test skeleton files for L2/L3 tasks (with real assertions, not empty shells)
+   6. Generate API contract files for L3 tasks (optional)
+   7. Generate browser scenario files for L4 tasks
+   8. Generate necessary conftest/fixtures
+   9. Report spec coverage and any quality issues
    ---
 
-4. Initializer 完成后，验证生成的材料：
-   - 确认 feature_tests.json 已生成
-   - 确认每个 spec scenario 有对应测试
-   - 运行生成的测试确认它们当前全部 FAIL（因为实现还没写）
-   - 如果测试不是全部 FAIL（比如有些 pass 了），说明测试有问题或者实现已存在
+4. After the Initializer finishes, validate the generated material:
+   - Confirm feature_tests.json was generated
+   - Confirm every spec scenario has a corresponding test
+   - Run the generated tests to confirm they all currently FAIL (since the implementation has not been written yet)
+   - If tests are not all FAILing (e.g., some pass), the tests may be flawed or the implementation already exists
 
-5. 创建 `claude-progress.txt`，列出所有任务，状态为 pending。
+5. Create `claude-progress.txt`, listing all tasks with status pending.
 
-6. Git commit 所有初始化文件：
+6. Git commit all initialization files:
    ```bash
    git add changes/$ARGUMENTS/ tests/
    git commit -m "harness: initialize verification material for $ARGUMENTS"
    ```
 
-## Phase 2: 逐任务执行
+## Phase 2: Per-Task Execution
 
-对 feature_tests.json 中每个 `passes: false` 的任务，**按顺序逐个执行**（不要一次全做）：
+For each task in feature_tests.json with `passes: false`, **execute one at a time in order** (do not do them all at once):
 
-### 2a. 编码
+### 2a. Coding
 
-告诉用户当前任务和验证级别：
+Inform the user of the current task and verification level:
 ```
 --- Task {id}: {description} [Level: {verification_level}] ---
-Scenarios: {列出 spec_scenarios}
-Pre-generated tests: {列出对应的测试函数}
+Scenarios: {list spec_scenarios}
+Pre-generated tests: {list corresponding test functions}
 ```
 
-编写实现代码。**注意**：
-- 如果 `pre_generated_tests: true`，不要修改测试文件，只写实现让测试通过
-- 如果是 L4 任务，确保 UI 元素有 data-testid 属性（给 Playwright 用）
+Write the implementation code. **Notes**:
+- If `pre_generated_tests: true`, do not modify test files — only write implementation code to make the tests pass
+- If it is an L4 task, ensure UI elements have data-testid attributes (for Playwright)
 
-完成后：
+After completion:
 ```bash
-git add <改动的文件>
-git commit -m "feat($ARGUMENTS): task {id} - {描述}"
+git add <changed files>
+git commit -m "feat($ARGUMENTS): task {id} - {description}"
 ```
 
-### 2b. 独立评估
+### 2b. Independent Evaluation
 
-**关键：用 Task 工具启动一个独立的 subagent 做评估，不要自己评估。**
+**Critical: Use the Task tool to launch an independent subagent for evaluation — do not evaluate yourself.**
 
-根据 verification_level 调整 evaluator 的 prompt：
+Adjust the evaluator's prompt based on verification_level:
 
-**L1/L2/L3 任务**：
+**L1/L2/L3 tasks**:
 ---
-你是代码评估者。请验证以下任务的实现：
+You are a code evaluator. Please verify the implementation of the following task:
 
-任务: {id} - {description}
-验证级别: {verification_level}
+Task: {id} - {description}
+Verification level: {verification_level}
 Spec Scenarios:
-{列出 spec_scenarios}
+{list spec_scenarios}
 
-步骤：
-1. 运行验证命令：{列出 verification_commands}
-2. 如果有 setup_commands，先运行它们
-3. 检查每个 spec scenario 是否有对应的通过测试
-4. 如果有 teardown_commands，运行它们
-5. 输出 STATUS: PASS 或 FAIL
+Steps:
+1. Run verification commands: {list verification_commands}
+2. If there are setup_commands, run them first
+3. Check whether each spec scenario has a corresponding passing test
+4. If there are teardown_commands, run them
+5. Output STATUS: PASS or FAIL
 ---
 
-**L4 任务**：
+**L4 tasks**:
 ---
-你是 QA 工程师，做黑盒测试。不要读代码。
+You are a QA engineer performing black-box testing. Do not read code.
 
-任务: {id} - {description}
+Task: {id} - {description}
 
-先运行 setup_commands 启动服务：{setup_commands}
+First run setup_commands to start services: {setup_commands}
 
-然后使用 Playwright 浏览器工具按以下场景测试：
-{粘贴 browser_verification.scenarios}
+Then use Playwright browser tools to test according to the following scenarios:
+{paste browser_verification.scenarios}
 
-对每个场景：
-1. 按 steps 逐步操作
-2. 检查 assertions
-3. 关键步骤截图
+For each scenario:
+1. Follow the steps sequentially
+2. Check assertions
+3. Take screenshots at key steps
 
-完成后运行 teardown_commands：{teardown_commands}
+After completion, run teardown_commands: {teardown_commands}
 
-输出 STATUS: PASS 或 FAIL
----
-
-**L5 任务**：
----
-你是 QA 工程师。
-
-先运行 setup_commands 启动服务。
-按 screenshots 配置截图：{browser_verification.screenshots}
-将截图保存在 changes/$ARGUMENTS/evaluations/screenshots/
-
-输出 STATUS: NEEDS_HUMAN_REVIEW
-附上截图路径列表。
+Output STATUS: PASS or FAIL
 ---
 
-### 2c. 根据评估结果处理
-
-**PASS**: 更新 feature_tests.json（passes=true），更新 claude-progress.txt，git commit，继续下一个任务。
-
-**FAIL 且 attempts < 3**: 用 Task 工具启动 fixer subagent，prompt 如下：
-
+**L5 tasks**:
 ---
-你是代码修复者。请根据以下评估结果修复代码：
+You are a QA engineer.
 
-评估结果：
-{粘贴 evaluator 的输出}
+First run setup_commands to start services.
+Take screenshots per the screenshots configuration: {browser_verification.screenshots}
+Save screenshots in changes/$ARGUMENTS/evaluations/screenshots/
 
-规则：
-- 只修改评估中指出的问题
-- 不要修改 Initializer 生成的测试文件
-- 不要做额外重构
-- 修复后运行失败的测试确认通过
-- git commit 修复
+Output STATUS: NEEDS_HUMAN_REVIEW
+Include the list of screenshot paths.
 ---
 
-Fixer 完成后，回到 2b 重新评估。
+### 2c. Handle Evaluation Results
 
-**FAIL 且 attempts >= 3**: 停下来，告诉用户这个任务 3 次修复都没过，贴出最新的评估结果，问用户怎么处理。
+**PASS**: Update feature_tests.json (passes=true), update claude-progress.txt, git commit, continue to the next task.
 
-**NEEDS_HUMAN_REVIEW (L5)**: 告诉用户截图位置，暂停等待人工确认后继续。
+**FAIL and attempts < 3**: Use the Task tool to launch a fixer subagent with the following prompt:
 
-## Phase 3: 完成
+---
+You are a code fixer. Please fix the code based on the following evaluation results:
 
-所有任务 PASS 后（L5 任务需要人工确认），输出汇总：
-- 每个任务的通过情况（级别、第几次通过）
-- Initializer 生成了多少测试，覆盖了多少 scenarios
-- 提示用户可以运行 `/opsx:verify` 和 `/opsx:archive`
+Evaluation results:
+{paste evaluator output}
+
+Rules:
+- Only fix the issues identified in the evaluation
+- Do not modify test files generated by the Initializer
+- Do not perform additional refactoring
+- After fixing, run the previously failing tests to confirm they pass
+- Git commit the fix
+---
+
+After the Fixer finishes, return to 2b to re-evaluate.
+
+**FAIL and attempts >= 3**: Stop and tell the user this task has failed 3 fix attempts. Paste the latest evaluation results and ask the user how to proceed.
+
+**NEEDS_HUMAN_REVIEW (L5)**: Tell the user the screenshot location, pause, and wait for human confirmation before continuing.
+
+## Phase 3: Completion
+
+After all tasks have PASS status (L5 tasks require human confirmation), output a summary:
+- Pass status of each task (level, which attempt it passed on)
+- How many tests the Initializer generated and how many scenarios they covered
+- Remind the user they can run `/opsx:verify` and `/opsx:archive`

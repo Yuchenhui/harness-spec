@@ -11,7 +11,7 @@ fi
 node -e "
 const fs = require('fs');
 try {
-  const data = JSON.parse(fs.readFileSync('$FEATURE_TESTS', 'utf8'));
+  const data = JSON.parse(fs.readFileSync(process.argv[1], 'utf8'));
   const tasks = data.tasks || [];
   const total = tasks.length;
   const passed = tasks.filter(t => t.passes);
@@ -38,6 +38,6 @@ try {
 } catch (e) {
   // Silently fail if file can't be parsed
 }
-" 2>/dev/null
+" "$FEATURE_TESTS" 2>/dev/null
 
 exit 0

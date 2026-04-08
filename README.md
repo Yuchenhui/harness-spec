@@ -133,7 +133,27 @@ We considered forking OpenSpec to build harness features in. We decided against 
 3. **Minimal footprint** — Harness is 4 markdown files vs. maintaining a full TypeScript project
 4. **Composability** — Harness works with or without OpenSpec (you can write `feature_tests.json` by hand)
 
+### Dependencies
+
+**None.** Harness is 4 pure markdown files using Claude Code's built-in agents/commands/skills mechanism. No MCP servers, no npm packages, no additional plugins required. OpenSpec is optional — you can use Harness standalone.
+
 ### Installation
+
+#### Method 1: Claude Code Plugin (Recommended)
+
+```bash
+# In Claude Code, add the marketplace and install:
+/plugin marketplace add yuchenhui/harness-spec
+/plugin install harness-spec@harness-spec
+```
+
+After installation, the command is available as:
+
+```
+/harness-spec:harness-apply <change-id>
+```
+
+#### Method 2: Manual Copy
 
 ```bash
 # Clone this repo
@@ -156,21 +176,24 @@ git add .claude/
 git commit -m "chore: add harness engineering templates"
 ```
 
-After installation, your project looks like:
+After manual installation, the command is available as:
 
 ```
-your-project/
-├── .claude/
-│   ├── agents/
-│   │   ├── evaluator.md        ← Independent verification agent
-│   │   └── fixer.md            ← Auto-repair agent
-│   ├── commands/
-│   │   └── harness-apply.md    ← /project:harness-apply command
-│   └── skills/
-│       └── progress-tracker/
-│           └── SKILL.md        ← Cross-session state recovery
-├── CLAUDE.md
-└── ...
+/project:harness-apply <change-id>
+```
+
+#### What Gets Installed
+
+```
+.claude/  (or plugin namespace)
+├── agents/
+│   ├── evaluator.md        ← Independent verification agent
+│   └── fixer.md            ← Auto-repair agent
+├── commands/
+│   └── harness-apply.md    ← /harness-apply command
+└── skills/
+    └── progress-tracker/
+        └── SKILL.md        ← Cross-session state recovery
 ```
 
 ### Usage
@@ -378,7 +401,27 @@ changes/add-user-auth/
 3. **最小体量** — Harness 只有 4 个 markdown 文件，vs 维护一整个 TypeScript 项目
 4. **可组合性** — Harness 可以脱离 OpenSpec 单独使用（手写 `feature_tests.json` 即可）
 
+### 依赖
+
+**无。** Harness 是 4 个纯 markdown 文件，使用 Claude Code 内置的 agents/commands/skills 机制。不需要 MCP 服务器、npm 包或其他插件。OpenSpec 也是可选的 — 可以单独使用 Harness。
+
 ### 安装
+
+#### 方式一：Claude Code Plugin 安装（推荐）
+
+```bash
+# 在 Claude Code 中执行：
+/plugin marketplace add yuchenhui/harness-spec
+/plugin install harness-spec@harness-spec
+```
+
+安装后，命令通过以下方式调用：
+
+```
+/harness-spec:harness-apply <change-id>
+```
+
+#### 方式二：手动复制
 
 ```bash
 # 克隆本仓库
@@ -401,21 +444,24 @@ git add .claude/
 git commit -m "chore: add harness engineering templates"
 ```
 
-安装后的项目结构：
+手动安装后，命令通过以下方式调用：
 
 ```
-your-project/
-├── .claude/
-│   ├── agents/
-│   │   ├── evaluator.md        ← 独立评估 agent
-│   │   └── fixer.md            ← 自动修复 agent
-│   ├── commands/
-│   │   └── harness-apply.md    ← /project:harness-apply 命令
-│   └── skills/
-│       └── progress-tracker/
-│           └── SKILL.md        ← 跨 session 状态恢复
-├── CLAUDE.md
-└── ...
+/project:harness-apply <change-id>
+```
+
+#### 安装了什么
+
+```
+.claude/（或 plugin 命名空间下）
+├── agents/
+│   ├── evaluator.md        ← 独立评估 agent
+│   └── fixer.md            ← 自动修复 agent
+├── commands/
+│   └── harness-apply.md    ← harness-apply 命令
+└── skills/
+    └── progress-tracker/
+        └── SKILL.md        ← 跨 session 状态恢复
 ```
 
 ### 使用方法
@@ -494,6 +540,35 @@ Session 中断后恢复：
 **Java**：`Bash(mvn test *)`、`Bash(./gradlew test *)`
 
 ---
+
+## Repo Structure / 仓库结构
+
+```
+harness-spec/
+├── .claude-plugin/
+│   ├── plugin.json              # Plugin manifest (for /plugin install)
+│   └── marketplace.json         # Marketplace manifest (for /plugin marketplace add)
+├── agents/                      # Plugin layout (used by /plugin install)
+│   ├── evaluator.md
+│   └── fixer.md
+├── commands/
+│   └── harness-apply.md
+├── skills/
+│   └── progress-tracker/
+│       └── SKILL.md
+├── templates/.claude/           # Manual install layout (used by cp -r)
+│   ├── agents/
+│   ├── commands/
+│   └── skills/
+├── docs/                        # Documentation
+│   ├── getting-started.md
+│   ├── architecture.md
+│   ├── workflow.md
+│   ├── evaluation-loop.md
+│   └── best-practices.md
+└── examples/
+    └── openspec-integration.md
+```
 
 ## Documentation / 文档
 

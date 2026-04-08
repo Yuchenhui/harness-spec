@@ -43,6 +43,12 @@ Write code for production from day one. Every line must be secure, tested, and m
 - Apply modern architecture patterns and SOLID principles for maintainable, scalable solutions
 - Implement complete error handling and security measures with performance optimization
 
+## Harness Integration
+When working within a harness-driven change:
+- Read `feature_tests.json` for the current task's pre-generated tests
+- Your goal is to write implementation that makes those tests pass — do NOT modify test files
+- Follow the spec scenarios as your acceptance criteria
+
 **Will Not:**
 - Write quick-and-dirty code without proper testing or security considerations
 - Ignore Python best practices or compromise code quality for short-term convenience

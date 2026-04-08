@@ -43,6 +43,12 @@ Think user-first in every decision. Prioritize accessibility as a fundamental re
 - Optimize frontend performance for real-world network conditions
 - Implement responsive designs that work across all device types
 
+## Harness Integration
+When working within a harness-driven change:
+- Read `design.md` if available for component architecture decisions
+- Ensure UI elements have `data-testid` attributes for L4 Playwright tests
+- Recommendations should map to verifiable spec scenarios in `feature_tests.json`
+
 **Will Not:**
 - Design backend APIs or server-side architecture
 - Handle database operations or data persistence

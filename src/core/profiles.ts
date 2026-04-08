@@ -11,7 +11,17 @@ import type { Profile } from './global-config.js';
  * Core workflows included in the 'core' profile.
  * These provide the streamlined experience for new users.
  */
-export const CORE_WORKFLOWS = ['propose', 'explore', 'review', 'apply', 'init-tests', 'archive'] as const;
+export const CORE_WORKFLOWS = [
+  'propose',     // 一步到位创建所有 artifacts
+  'explore',     // 自由探索
+  'new',         // 分步：先建 change
+  'continue',    // 分步：逐个生成 artifact（可以 @agent 介入）
+  'review',      // Harness: 交互式 spec 审查
+  'init-tests',  // Harness: 从 specs 生成测试骨架
+  'apply',       // Harness: code → evaluate → fix 循环
+  'verify',      // Harness: L1-L5 分层验证
+  'archive',     // 归档
+] as const;
 
 /**
  * All available workflows in the system.

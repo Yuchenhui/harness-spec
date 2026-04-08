@@ -153,7 +153,14 @@ const HARNESS_APPLY_INSTRUCTIONS = `Implement tasks from a change with harness e
 
     Write implementation code. If pre_generated_tests is true, do NOT modify test files.
     For L4 tasks, ensure UI elements have data-testid attributes.
-    Git commit: "feat(<name>): task {id} - {description}"
+
+    **Available agents during coding** (user can @mention if needed):
+    - @python-expert, @backend-architect, @frontend-architect (language/domain help)
+    - @idempotent-db-script-generator (database migration tasks)
+    - @security-engineer (auth/permission tasks)
+
+    Git commit using /git-commit (smart grouping + conventional format),
+    or manually: "feat(<name>): task {id} - {description}"
 
     **c. Evaluate independently**
 

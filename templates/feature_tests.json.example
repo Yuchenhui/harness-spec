@@ -1,0 +1,109 @@
+{
+  "change_id": "add-user-authentication",
+  "created_at": "2025-01-15T10:00:00Z",
+  "evaluation_config": {
+    "max_retries": 3,
+    "require_test_coverage": true,
+    "require_type_check": false,
+    "require_lint_pass": true,
+    "custom_checks": [
+      "python -m bandit -r app/ -ll -q"
+    ]
+  },
+  "tasks": [
+    {
+      "id": "1.1",
+      "description": "Create User model with password hashing",
+      "spec_scenarios": [
+        "Given a new user registration, When password is provided, Then it is stored as bcrypt hash",
+        "Given User model, When queried by email, Then returns user object or None"
+      ],
+      "verification_commands": [
+        "pytest tests/models/test_user.py -v",
+        "python -c \"from app.models import User; print(User.__tablename__)\""
+      ],
+      "passes": true,
+      "last_evaluated": "2025-01-15T11:30:00Z",
+      "evaluation_attempts": 1
+    },
+    {
+      "id": "1.2",
+      "description": "Add /auth/register endpoint",
+      "spec_scenarios": [
+        "Given valid email and password, When POST /auth/register, Then return 201 with user_id",
+        "Given duplicate email, When POST /auth/register, Then return 409 Conflict",
+        "Given invalid email format, When POST /auth/register, Then return 422 Validation Error"
+      ],
+      "verification_commands": [
+        "pytest tests/api/test_auth.py::test_register_success -v",
+        "pytest tests/api/test_auth.py::test_register_duplicate -v",
+        "pytest tests/api/test_auth.py::test_register_invalid_email -v"
+      ],
+      "passes": true,
+      "last_evaluated": "2025-01-15T12:15:00Z",
+      "evaluation_attempts": 2
+    },
+    {
+      "id": "2.1",
+      "description": "Add /auth/login endpoint with JWT token generation",
+      "spec_scenarios": [
+        "Given valid credentials, When POST /auth/login, Then return 200 with access_token and refresh_token",
+        "Given invalid password, When POST /auth/login, Then return 401 Unauthorized",
+        "Given non-existent email, When POST /auth/login, Then return 401 Unauthorized"
+      ],
+      "verification_commands": [
+        "pytest tests/api/test_auth.py::test_login_success -v",
+        "pytest tests/api/test_auth.py::test_login_wrong_password -v",
+        "pytest tests/api/test_auth.py::test_login_nonexistent_user -v"
+      ],
+      "passes": false,
+      "last_evaluated": null,
+      "evaluation_attempts": 0
+    },
+    {
+      "id": "2.2",
+      "description": "Add JWT middleware for protected routes",
+      "spec_scenarios": [
+        "Given valid JWT token in Authorization header, When accessing protected route, Then request proceeds",
+        "Given expired JWT token, When accessing protected route, Then return 401 with 'token expired' message",
+        "Given no Authorization header, When accessing protected route, Then return 401 Unauthorized"
+      ],
+      "verification_commands": [
+        "pytest tests/middleware/test_jwt.py -v"
+      ],
+      "passes": false,
+      "last_evaluated": null,
+      "evaluation_attempts": 0
+    },
+    {
+      "id": "3.1",
+      "description": "Add /auth/refresh endpoint for token refresh",
+      "spec_scenarios": [
+        "Given valid refresh_token, When POST /auth/refresh, Then return new access_token",
+        "Given expired refresh_token, When POST /auth/refresh, Then return 401"
+      ],
+      "verification_commands": [
+        "pytest tests/api/test_auth.py::test_refresh_token -v",
+        "pytest tests/api/test_auth.py::test_refresh_expired -v"
+      ],
+      "passes": false,
+      "last_evaluated": null,
+      "evaluation_attempts": 0
+    },
+    {
+      "id": "3.2",
+      "description": "Add /auth/me endpoint to get current user profile",
+      "spec_scenarios": [
+        "Given authenticated user, When GET /auth/me, Then return user profile without password",
+        "Given unauthenticated request, When GET /auth/me, Then return 401"
+      ],
+      "verification_commands": [
+        "pytest tests/api/test_auth.py::test_get_me -v",
+        "pytest tests/api/test_auth.py::test_get_me_unauthenticated -v"
+      ],
+      "passes": false,
+      "last_evaluated": null,
+      "evaluation_attempts": 0
+    }
+  ]
+}

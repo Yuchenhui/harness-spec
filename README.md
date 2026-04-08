@@ -2,10 +2,15 @@
 
 [中文版](README_CN.md)
 
+> **⚠️ UNDER ACTIVE DEVELOPMENT — NOT READY FOR PRODUCTION USE**
+>
+> This project is in early development. APIs, file formats, and workflows may change without notice. Do not use in production projects. Contributions and feedback are welcome.
+
 > Verified, recoverable, self-healing AI-assisted development. Built on [OpenSpec](https://github.com/Fission-AI/OpenSpec) core.
 
 [![Built on OpenSpec](https://img.shields.io/badge/built%20on-OpenSpec%20v1.2.0-blue)](https://github.com/Fission-AI/OpenSpec)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Status: Development](https://img.shields.io/badge/status-development-orange.svg)]()
 
 ## What is Harness Engineering?
 

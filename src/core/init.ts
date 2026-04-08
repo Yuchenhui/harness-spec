@@ -570,6 +570,35 @@ export class InitCommand {
           removedCommandCount += await this.removeCommandFiles(projectPath, tool.value);
         }
 
+        // Generate harness agent files (.claude/agents/)
+        if (tool.value === 'claude') {
+          const agentsDir = path.join(projectPath, tool.skillsDir, 'agents');
+          await FileSystemUtils.createDirectory(agentsDir);
+          const agentFiles = ['evaluator.md', 'fixer.md', 'spec-reviewer.md', 'initializer.md'];
+          for (const agentFile of agentFiles) {
+            const sourcePath = path.join(path.dirname(new URL(import.meta.url).pathname), '..', '..', 'agents', agentFile);
+            if (fs.existsSync(sourcePath)) {
+              const content = await fs.promises.readFile(sourcePath, 'utf8');
+              await FileSystemUtils.writeFile(path.join(agentsDir, agentFile), content);
+            }
+          }
+        }
+
+        // Generate harness hook scripts (.claude/hooks/)
+        if (tool.value === 'claude') {
+          const hooksDir = path.join(projectPath, tool.skillsDir, 'hooks');
+          await FileSystemUtils.createDirectory(hooksDir);
+          const hookFiles = ['stop-check.sh', 'session-init.sh', 'post-tool-notify.sh', 'hooks.json'];
+          for (const hookFile of hookFiles) {
+            const sourcePath = path.join(path.dirname(new URL(import.meta.url).pathname), '..', '..', 'hooks', hookFile);
+            if (fs.existsSync(sourcePath)) {
+              const content = await fs.promises.readFile(sourcePath, 'utf8');
+              const mode = hookFile.endsWith('.sh') ? 0o755 : 0o644;
+              await fs.promises.writeFile(path.join(hooksDir, hookFile), content, { mode });
+            }
+          }
+        }
+
         spinner.succeed(`Setup complete for ${tool.name}`);
 
         if (tool.wasConfigured) {

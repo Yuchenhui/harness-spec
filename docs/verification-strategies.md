@@ -305,27 +305,60 @@ Phase 3: 完成
   └── 所有 L1-L4 PASS + L5 已审查 → 完成
 ```
 
+## 研究支撑
+
+### TDD 模式的科学依据
+
+TDAD 论文（arXiv:2603.17973）的关键发现：
+
+> 给 agent 笼统的 "follow TDD" 指令而不指定具体测试，反而**增加了回归缺陷率**（从 6.08% 到 9.94%）。TDAD 构建代码到测试的依赖图，让 agent 精确知道要验证哪些测试，将回归缺陷减少了 70%。
+
+这验证了我们 `pre_generated_tests` 的设计：不是告诉 agent "写测试"，而是**直接给它需要通过的测试**。
+
+### Simon Willison 的 Red/Green 观察
+
+> "Use red/green TDD" 是一个五个 token 的 prompt，能解锁模型内置的工程纪律。但实际中 agent 倾向于把 red 和 green 合并成一步，因为训练数据中几乎没有代码以 'red' 状态提交的例子。"
+
+这是我们让 Initializer 先生成失败测试的另一个理由 — 强制拆分 red/green 阶段。
+
 ## 配置 Playwright MCP
 
-### 安装
+### 两种方式（选一）
+
+**方式 A：Playwright MCP Server**（标准方式）
 
 ```bash
-npm install -D @anthropic-ai/playwright-mcp
+# 安装
+npm install -D @playwright/mcp
+
+# 添加到 Claude Code
+claude mcp add playwright -- npx @playwright/mcp@latest --headless
 ```
 
-### 项目配置
-
-在项目根目录创建或更新 `.mcp.json`：
+或在项目 `.mcp.json` 中配置：
 
 ```json
 {
   "mcpServers": {
     "playwright": {
       "command": "npx",
-      "args": ["@anthropic-ai/playwright-mcp@latest", "--headless"]
+      "args": ["@playwright/mcp@latest", "--headless"]
     }
   }
 }
+```
+
+**两种模式**：
+- **Snapshot 模式**（默认）— 使用浏览器的 accessibility tree，不需要 vision 模型，token 消耗低
+- **Vision 模式**（`--caps=vision`）— 使用真实截图 + 坐标交互，适合 canvas、SVG、自绘 UI
+
+**方式 B：Playwright CLI**（Claude Code 专用，推荐）
+
+```bash
+npm install -D @playwright/cli
+```
+
+CLI 方式将截图和 accessibility snapshot 保存到磁盘而非流入上下文窗口，**token 消耗降低约 4 倍**（从 ~114k 降至 ~27k）。适合频繁调用 evaluator 的场景。
 ```
 
 ### Evaluator 在 L4 模式下的行为

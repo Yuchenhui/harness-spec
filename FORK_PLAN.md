@@ -73,14 +73,20 @@ harness-spec/
 
 **预估删除：~8,000 行（651 文件 → ~200 文件）**
 
-### Phase 2: 重命名
+### Phase 2: ~~重命名~~ → 不需要
 
-全局替换：
-- [ ] `openspec` → `harness`（目录名、配置路径、变量名）
-- [ ] `/opsx:` → `/harness:`（slash command 前缀）
-- [ ] `@fission-ai/openspec` → `@yuchenhui/harness-spec`（package name）
-- [ ] `OPENSPEC_DIR_NAME` → `HARNESS_DIR_NAME`
-- [ ] CLI 命令 `openspec` → `harness`
+~~全局替换 openspec → harness~~
+
+**决定：保留 `/opsx:` 前缀和 `openspec/` 目录名。** 理由：
+- 用户已习惯 `/opsx:propose`、`/opsx:apply` 等命令
+- 项目目录 `openspec/` 下已有 specs 和 changes，改名会丢数据
+- 我们是在 OpenSpec 基础上扩展，不是替代
+- 只需改 npm 包名（`harness-spec`）和 CLI 别名（`harness`）
+
+实际需要做的只有：
+- [ ] `package.json` name: `harness-spec`（已完成）
+- [ ] `bin/` 注册 `harness` 别名（同时保留 `openspec` 兼容）
+- [ ] 其他全部保持原样
 
 ### Phase 3: 改造 Schema
 

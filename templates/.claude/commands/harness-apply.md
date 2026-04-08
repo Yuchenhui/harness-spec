@@ -1,237 +1,107 @@
-# Harness Apply
+你是 Harness Apply 编排器。用户提供了一个 change-id: $ARGUMENTS
 
-> 增强版的 OpenSpec apply，集成评估-修复循环和进度追踪。
+请严格按以下流程执行：
 
-## 使用方式
+## Phase 1: 初始化
 
-```
-/harness-apply <change-id>
-```
+1. 查找 change 目录。按优先级搜索：
+   - `changes/$ARGUMENTS/tasks.md`
+   - `**/changes/$ARGUMENTS/tasks.md`
+   - 如果都找不到，问用户 tasks.md 在哪里
 
-或恢复之前中断的执行：
+2. 检查是否已有 `feature_tests.json`（同目录下）：
+   - 如果有且部分 passes=true → 进入恢复模式（跳到 Phase 2，从第一个 passes=false 的任务开始）
+   - 如果没有 → 继续初始化
 
-```
-/harness-apply <change-id> --resume
-```
+3. 读取 `tasks.md` 和 `specs.md`（如果存在），为每个任务生成 `feature_tests.json`：
 
-## 执行流程
-
-当用户调用 `/harness-apply <change-id>` 时，按以下步骤执行：
-
-### Phase 1: 初始化
-
-1. **定位 change 目录**: 读取 `changes/<change-id>/tasks.md`
-2. **检查是否有 feature_tests.json**:
-   - 如果存在且有 `passes: true` 的任务 → 进入恢复模式
-   - 如果不存在 → 进入初始化模式
-
-3. **初始化模式 — 生成 feature_tests.json**:
-
-   读取 `tasks.md` 和 `specs.md`，为每个任务生成可验证的条目：
-
-   ```json
-   {
-     "change_id": "<change-id>",
-     "created_at": "<timestamp>",
-     "evaluation_config": {
-       "max_retries": 3,
-       "require_test_coverage": true,
-       "require_lint_pass": true
-     },
-     "tasks": [
-       {
-         "id": "1.1",
-         "description": "从 tasks.md 中的任务描述",
-         "spec_scenarios": ["从 specs.md 中提取的相关 scenarios"],
-         "verification_commands": ["根据项目类型生成的测试命令"],
-         "passes": false,
-         "last_evaluated": null,
-         "evaluation_attempts": 0
-       }
-     ]
-   }
-   ```
-
-   **生成 verification_commands 的规则**:
-   - Python/pytest 项目: `pytest tests/test_xxx.py -v`
-   - Node/Jest 项目: `npx jest tests/xxx.test.ts`
-   - Go 项目: `go test ./pkg/xxx/...`
-   - 如果 scenario 涉及 API: 添加 curl 命令
-   - 如果 scenario 涉及 CLI: 添加命令行验证
-
-4. **初始化 claude-progress.txt**:
-
-   ```
-   # Progress: <change-id>
-   ## Last Updated: <timestamp>
-   ## Status: IN_PROGRESS (0/<total> tasks completed)
-
-   ### Completed
-   (none)
-
-   ### Remaining
-   - [ ] 1.1 <description>
-   - [ ] 1.2 <description>
-   ...
-   ```
-
-5. **Git commit 初始化文件**:
-   ```bash
-   git add changes/<change-id>/feature_tests.json changes/<change-id>/claude-progress.txt
-   git commit -m "harness: initialize feature_tests for <change-id>"
-   ```
-
-### Phase 2: 逐任务执行
-
-对 feature_tests.json 中每个 `passes: false` 的任务，按顺序执行：
-
-#### 2a. 执行任务 (Coding)
-
-告知用户当前任务：
-```
-📋 Task {id}: {description}
-   Scenarios: {列出 spec_scenarios}
-   开始编码...
+```json
+{
+  "change_id": "$ARGUMENTS",
+  "tasks": [
+    {
+      "id": "1.1",
+      "description": "任务描述",
+      "spec_scenarios": ["从 specs.md 提取的 Given/When/Then"],
+      "verification_commands": ["pytest tests/xxx.py -v"],
+      "passes": false,
+      "evaluation_attempts": 0
+    }
+  ]
+}
 ```
 
-执行编码工作：
-- 只关注当前任务的 spec scenarios
-- 编写实现代码
-- 编写对应测试（如果还没有）
-- 完成后 git commit:
-  ```bash
-  git add <changed-files>
-  git commit -m "feat(<change-id>): implement task {id} - {short-description}"
-  ```
+生成 verification_commands 时：看项目用什么测试框架（pytest / jest / go test），生成对应命令。
 
-#### 2b. 评估 (Evaluate)
+4. 创建 `claude-progress.txt`，列出所有任务，状态为 pending。
 
-启动 evaluator subagent:
+5. Git commit 这两个文件：`git commit -m "harness: init feature_tests for $ARGUMENTS"`
 
+## Phase 2: 逐任务执行
+
+对 feature_tests.json 中每个 `passes: false` 的任务，**按顺序逐个执行**（不要一次全做）：
+
+### 2a. 编码
+
+告诉用户当前任务：
 ```
-使用 Task 工具启动 implementation-evaluator agent:
-
-输入:
-- task_id: {id}
-- description: {description}
-- spec_scenarios: {scenarios}
-- verification_commands: {commands}
-- attempt: {evaluation_attempts + 1}
-- project_root: {pwd}
-- change_dir: changes/<change-id>/
-
-要求: 生成评估报告并返回 PASS 或 FAIL
+--- Task {id}: {description} ---
+Scenarios: {列出}
 ```
 
-保存评估报告:
+然后编写实现代码和测试。完成后：
 ```bash
-# 保存报告到 evaluations 目录
-mkdir -p changes/<change-id>/evaluations/
-# 报告内容写入 task-{id}-attempt-{n}.md
+git add <改动的文件>
+git commit -m "feat($ARGUMENTS): task {id} - {描述}"
 ```
 
-#### 2c. 判定与处理
+### 2b. 独立评估
 
-**如果 PASS:**
-```
-✅ Task {id}: PASS (attempt {n})
+**关键：用 Task 工具启动一个独立的 subagent 做评估，不要自己评估。**
 
-更新 feature_tests.json:
-- passes: true
-- last_evaluated: <timestamp>
-- evaluation_attempts: {n}
+启动 subagent 时用以下 prompt：
 
-更新 claude-progress.txt:
-- 移动到 Completed 列表
-- 记录 commit hash
+---
+你是代码评估者。请验证以下任务的实现：
 
-Git commit 进度更新
-→ 进入下一个任务
-```
+任务: {id} - {description}
+Spec Scenarios:
+{列出 spec_scenarios}
 
-**如果 FAIL 且 attempts < max_retries:**
-```
-❌ Task {id}: FAIL (attempt {n}/3)
-   原因: {来自评估报告的摘要}
-   启动修复...
+请执行以下步骤：
+1. 运行验证命令：{列出 verification_commands}
+2. 检查每个 spec scenario 是否有对应的通过测试
+3. 输出结果，格式为：
 
-启动 fixer subagent:
-- 输入: 评估报告内容
-- 任务: 根据报告修复问题
-- 完成后: 重新触发评估 (2b)
-```
+STATUS: PASS 或 FAIL
+FAILURES: （如果 FAIL，列出具体失败和原因）
+---
 
-**如果 FAIL 且 attempts >= max_retries:**
-```
-⚠️ Task {id}: 经过 {max_retries} 次修复仍未通过
+### 2c. 根据评估结果处理
 
-最近的评估报告:
-{报告摘要}
+**PASS**: 更新 feature_tests.json（passes=true），更新 claude-progress.txt，git commit，继续下一个任务。
 
-选项:
-1. 查看完整评估报告
-2. 手动修复后继续
-3. 跳过此任务继续下一个
-4. 修改 spec scenarios 后重试
-```
+**FAIL 且 attempts < 3**: 用 Task 工具启动 fixer subagent，prompt 如下：
 
-暂停等待用户决策。
+---
+你是代码修复者。请根据以下评估结果修复代码：
 
-### Phase 3: 完成
+评估结果：
+{粘贴 evaluator 的输出}
 
-所有任务通过后：
+规则：
+- 只修改评估中指出的问题
+- 不要做额外重构
+- 修复后运行失败的测试确认通过
+- git commit 修复
+---
 
-```
-🎉 所有 {total} 个任务已通过评估
+Fixer 完成后，回到 2b 重新评估。
 
-Summary:
-- Task 1.1: PASS (1st attempt)
-- Task 1.2: PASS (2nd attempt, 1 fix applied)
-- Task 2.1: PASS (1st attempt)
-...
+**FAIL 且 attempts >= 3**: 停下来，告诉用户这个任务 3 次修复都没过，贴出最新的评估结果，问用户怎么处理。
 
-评估报告保存在: changes/<change-id>/evaluations/
+## Phase 3: 完成
 
-下一步:
-- /opsx:verify  — 最终验证
-- /opsx:archive — 归档变更
-```
-
-### 恢复模式 (--resume)
-
-当使用 `--resume` 或检测到已有 feature_tests.json 时：
-
-1. 读取 `claude-progress.txt` 和 `feature_tests.json`
-2. 找到第一个 `passes: false` 的任务
-3. 读取最近的 git log 了解上下文
-4. 从该任务的 Phase 2 开始执行
-
-```
-🔄 恢复执行: <change-id>
-   状态: {completed}/{total} 任务已完成
-   上次完成: Task {last_id} (commit: {hash})
-   继续: Task {next_id} — {description}
-```
-
-## 上下文管理
-
-### 上下文窗口监控
-
-如果感知到上下文窗口使用率较高（对话很长），主动：
-
-1. 保存当前进度到 claude-progress.txt
-2. Git commit 所有未提交的改动
-3. 提示用户:
-   ```
-   ⚠️ 上下文窗口接近上限，建议开启新 session。
-
-   当前进度已保存。新 session 中运行:
-   /harness-apply <change-id> --resume
-   ```
-
-### 每个任务后的清理
-
-完成一个任务后，在开始下一个之前：
-- 确保所有改动已 commit
-- progress.txt 已更新
-- 不要在内存中保留上一个任务的详细代码内容
+所有任务 PASS 后，输出汇总：
+- 每个任务的通过情况（第几次通过）
+- 提示用户可以运行 `/opsx:verify` 和 `/opsx:archive`

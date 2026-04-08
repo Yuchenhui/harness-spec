@@ -311,6 +311,22 @@ Session 中断后恢复：
 | Harness Apply | `.claude/commands/harness-apply.md` | 编排 apply → evaluate → fix 循环 |
 | Progress Tracker | `.claude/skills/progress-tracker/SKILL.md` | 管理 feature_tests.json 和进度状态 |
 
+### 验证级别
+
+不同类型的任务需要不同的验证手段。详见 [docs/verification-strategies.md](docs/verification-strategies.md)。
+
+| 级别 | 工具 | 适用场景 |
+|------|------|---------|
+| **L1: Static** | ruff, mypy, tsc | 所有代码（lint + 类型检查）|
+| **L2: Unit** | pytest, jest | 业务逻辑、模型、工具函数 |
+| **L3: Integration** | pytest + curl/httpx | API 接口、数据库操作 |
+| **L4: E2E/Browser** | **Playwright MCP** | UI 交互、前端功能 |
+| **L5: Visual** | Playwright 截图 | 样式、布局、设计验证 |
+
+**核心改进**：TDD 模式下（`tdd_mode: true`），Initializer 在编码之前就生成测试骨架。Coding Agent 只写实现代码，测试来自 specs，不是 agent 自己写的。避免"学生自己出题自己答"的问题。
+
+**对于 L4（浏览器验证）**，evaluator 使用 [Playwright MCP](https://github.com/anthropics/playwright-mcp) 做黑盒测试 — 它只有浏览器工具（导航、点击、输入、截图），没有代码访问权限。像真实用户一样测试。
+
 ## 适配你的技术栈
 
 编辑 `.claude/agents/evaluator.md` 的 tools 部分：
@@ -364,6 +380,7 @@ harness-spec/
 | [docs/workflow.md](docs/workflow.md) | 完整工作流指南 |
 | [docs/evaluation-loop.md](docs/evaluation-loop.md) | 评估修复循环详解 |
 | [docs/best-practices.md](docs/best-practices.md) | Anthropic/OpenAI 最佳实践整理 |
+| [docs/verification-strategies.md](docs/verification-strategies.md) | 分层验证策略（L1-L5）与 Playwright |
 | [examples/openspec-integration.md](examples/openspec-integration.md) | 端到端集成示例 |
 
 ## 参考来源

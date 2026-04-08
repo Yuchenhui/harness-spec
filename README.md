@@ -313,6 +313,22 @@ Then run:
 | Harness Apply | `.claude/commands/harness-apply.md` | Orchestrates the apply → evaluate → fix loop |
 | Progress Tracker | `.claude/skills/progress-tracker/SKILL.md` | Manages feature_tests.json and progress state |
 
+### Verification Levels
+
+Different tasks need different verification methods. See [docs/verification-strategies.md](docs/verification-strategies.md) for full details.
+
+| Level | Tools | Best For |
+|-------|-------|----------|
+| **L1: Static** | ruff, mypy, tsc | All code (lint + type check) |
+| **L2: Unit** | pytest, jest | Business logic, models, utilities |
+| **L3: Integration** | pytest + curl/httpx | API endpoints, database operations |
+| **L4: E2E/Browser** | **Playwright MCP** | UI interactions, frontend features |
+| **L5: Visual** | Playwright screenshots | Styling, layout, design verification |
+
+**Key insight**: In TDD mode (`tdd_mode: true`), the initializer generates test skeletons *before* coding begins. The Coding Agent only writes implementation — tests come from specs, not from the agent. This prevents the "student writes their own exam" problem.
+
+**For L4 (Browser)**, the evaluator uses [Playwright MCP](https://github.com/anthropics/playwright-mcp) in black-box mode — it only has browser tools (navigate, click, type, screenshot), no code access. It tests like a real user.
+
 ## Adapt to Your Tech Stack
 
 Edit `.claude/agents/evaluator.md` tools section:
@@ -366,6 +382,7 @@ harness-spec/
 | [docs/workflow.md](docs/workflow.md) | Full workflow guide |
 | [docs/evaluation-loop.md](docs/evaluation-loop.md) | Evaluation-fix loop details |
 | [docs/best-practices.md](docs/best-practices.md) | Best practices from Anthropic/OpenAI |
+| [docs/verification-strategies.md](docs/verification-strategies.md) | Multi-level verification (L1-L5) with Playwright |
 | [examples/openspec-integration.md](examples/openspec-integration.md) | End-to-end integration example |
 
 ## References

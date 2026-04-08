@@ -124,9 +124,59 @@ When you run `/opsx:archive`, all of these are archived together — the evaluat
 3. **Minimal footprint** — Harness is 4 markdown files vs. maintaining a full TypeScript project
 4. **Composability** — Harness works with or without OpenSpec (you can write `feature_tests.json` by hand)
 
+## Hooks: Automated Triggers (Inspired by ralph-wiggum)
+
+Pure markdown commands rely on Claude following instructions in-context. Hooks add **deterministic enforcement** — they run as shell scripts at specific lifecycle events, regardless of what Claude "decides" to do.
+
+This approach is inspired by [ralph-wiggum](https://github.com/anthropics/claude-code/tree/main/plugins/ralph-wiggum), Anthropic's official plugin that uses a **Stop hook** to prevent Claude from exiting until a task is truly complete.
+
+### Three Hooks
+
+| Hook | Event | What It Does |
+|------|-------|-------------|
+| `stop-check.sh` | **Stop** | Checks `feature_tests.json` — if any task has `passes: false`, **blocks Claude from stopping** and tells it which tasks remain |
+| `session-init.sh` | **SessionStart** | Reads `feature_tests.json` + `claude-progress.txt` and prints a status summary so Claude immediately knows where to resume |
+| `post-tool-notify.sh` | **PostToolUse** (Bash) | After a `git commit`, reminds Claude to launch the evaluator subagent |
+
+### How the Stop Hook Works
+
+This is the key mechanism. When Claude thinks it's "done" and tries to exit:
+
+```
+Claude: "All done! I've implemented the feature."
+         ↓ (tries to stop)
+Stop hook runs → reads feature_tests.json
+         ↓
+         ├── All tasks passes: true  → {"decision": "allow"}  → Claude exits ✅
+         │
+         └── Some tasks passes: false → {"decision": "block",  → Claude CANNOT exit ❌
+                                          "reason": "3/7 tasks passed. Remaining:
+                                            - Task 2.2: Add JWT middleware
+                                            - Task 3.1: Add token refresh
+                                          Continue working."}
+                                                ↓
+                                         Claude sees the reason
+                                         and continues working
+                                                ↓
+                                         (cycle repeats)
+```
+
+This solves the **self-evaluation bias** problem mechanically: Claude can't just *say* it's done — the hook independently verifies by checking `feature_tests.json`.
+
+### Hooks vs Pure MD
+
+| Aspect | Pure MD (commands only) | MD + Hooks |
+|--------|------------------------|------------|
+| Evaluation trigger | Claude follows prompt instructions | `post-tool-notify.sh` reminds after every commit |
+| Exit control | Claude decides when to stop | `stop-check.sh` blocks exit until verified |
+| Session recovery | Claude reads files if prompted | `session-init.sh` auto-prints status |
+| Reliability | Depends on context window & attention | Deterministic shell scripts, always run |
+
+**Recommendation**: Use hooks for production workflows. Use pure MD for simple or experimental tasks.
+
 ## Dependencies
 
-**None.** Harness is 4 pure markdown files using Claude Code's built-in agents/commands/skills mechanism. No MCP servers, no npm packages, no additional plugins required. OpenSpec is optional — you can use Harness standalone.
+**None.** Harness uses markdown files + bash hook scripts, all leveraging Claude Code's built-in mechanisms. No MCP servers, no npm packages, no additional plugins required. OpenSpec is optional — you can use Harness standalone.
 
 ## Installation
 
@@ -153,18 +203,23 @@ git clone https://github.com/yuchenhui/harness-spec.git
 # Go to your project
 cd ~/your-project
 
-# Copy templates
+# Copy templates (agents, commands, skills, hooks)
 cp -r /path/to/harness-spec/templates/.claude/ .claude/
 
 # If .claude/ already exists, merge manually:
-mkdir -p .claude/agents .claude/commands .claude/skills/progress-tracker
+mkdir -p .claude/agents .claude/commands .claude/skills/progress-tracker .claude/hooks
 cp /path/to/harness-spec/templates/.claude/agents/*.md .claude/agents/
 cp /path/to/harness-spec/templates/.claude/commands/*.md .claude/commands/
 cp /path/to/harness-spec/templates/.claude/skills/progress-tracker/SKILL.md .claude/skills/progress-tracker/
+cp /path/to/harness-spec/templates/.claude/hooks/* .claude/hooks/
+chmod +x .claude/hooks/*.sh
+
+# Merge hooks.json into your .claude/settings.json
+# (see hooks/hooks.json for the hook definitions to add)
 
 # Commit
 git add .claude/
-git commit -m "chore: add harness engineering templates"
+git commit -m "chore: add harness engineering templates with hooks"
 ```
 
 After manual installation, the command is available as:
@@ -182,6 +237,11 @@ After manual installation, the command is available as:
 │   └── fixer.md            ← Auto-repair agent
 ├── commands/
 │   └── harness-apply.md    ← /harness-apply command
+├── hooks/
+│   ├── hooks.json          ← Hook event definitions
+│   ├── stop-check.sh       ← Blocks exit until all tasks pass
+│   ├── session-init.sh     ← Auto-loads progress at session start
+│   └── post-tool-notify.sh ← Reminds to evaluate after git commit
 └── skills/
     └── progress-tracker/
         └── SKILL.md        ← Cross-session state recovery
@@ -277,11 +337,17 @@ harness-spec/
 ├── skills/
 │   └── progress-tracker/
 │       └── SKILL.md
+├── hooks/                       # Hook scripts (inspired by ralph-wiggum)
+│   ├── hooks.json               #   Hook event definitions
+│   ├── stop-check.sh            #   Stop hook — blocks exit until tasks pass
+│   ├── session-init.sh          #   SessionStart — auto-loads progress
+│   └── post-tool-notify.sh      #   PostToolUse — reminds to evaluate
 ├── templates/.claude/           # Manual install layout (used by cp -r)
 │   ├── agents/
 │   ├── commands/
+│   ├── hooks/
 │   └── skills/
-├── docs/                        # Documentation
+├── docs/
 │   ├── getting-started.md
 │   ├── architecture.md
 │   ├── workflow.md

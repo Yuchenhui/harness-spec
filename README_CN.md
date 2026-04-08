@@ -123,9 +123,59 @@ changes/add-user-auth/
 3. **最小体量** — Harness 只有 4 个 markdown 文件，vs 维护一整个 TypeScript 项目
 4. **可组合性** — Harness 可以脱离 OpenSpec 单独使用（手写 `feature_tests.json` 即可）
 
+## Hooks：自动触发机制（参考 ralph-wiggum）
+
+纯 markdown 命令依赖 Claude 在上下文中"遵守指令"。Hooks 则提供**确定性的强制执行** — 它们是 shell 脚本，在特定生命周期事件时运行，不管 Claude "觉得"自己做完了没有。
+
+这个方法参考了 [ralph-wiggum](https://github.com/anthropics/claude-code/tree/main/plugins/ralph-wiggum)，这是 Anthropic 官方插件，它使用 **Stop hook** 阻止 Claude 在任务未完成时退出。
+
+### 三个 Hook
+
+| Hook | 事件 | 做什么 |
+|------|------|--------|
+| `stop-check.sh` | **Stop** | 检查 `feature_tests.json` — 如果有任务 `passes: false`，**阻止 Claude 退出**，告诉它还剩哪些任务 |
+| `session-init.sh` | **SessionStart** | 读取 `feature_tests.json` + `claude-progress.txt`，打印进度摘要，让 Claude 立刻知道从哪里继续 |
+| `post-tool-notify.sh` | **PostToolUse** (Bash) | `git commit` 后，提醒 Claude 启动 evaluator subagent |
+
+### Stop Hook 的工作原理
+
+这是核心机制。当 Claude 认为自己"做完了"要退出时：
+
+```
+Claude: "全部完成了！"
+         ↓ （尝试退出）
+Stop hook 运行 → 读取 feature_tests.json
+         ↓
+         ├── 所有任务 passes: true  → {"decision":"allow"}  → Claude 退出 ✅
+         │
+         └── 部分任务 passes: false → {"decision":"block",   → Claude 无法退出 ❌
+                                       "reason": "3/7 任务通过。剩余：
+                                         - Task 2.2: Add JWT middleware
+                                         - Task 3.1: Add token refresh
+                                       继续工作。"}
+                                               ↓
+                                        Claude 看到原因
+                                        继续工作
+                                               ↓
+                                        （循环重复）
+```
+
+这从机制上解决了**自我评估偏差**问题：Claude 不能光*说*自己做完了 — hook 会独立检查 `feature_tests.json` 来验证。
+
+### Hooks vs 纯 MD
+
+| 方面 | 纯 MD（仅命令）| MD + Hooks |
+|------|---------------|------------|
+| 评估触发 | Claude 遵循 prompt 指令 | `post-tool-notify.sh` 在每次 commit 后提醒 |
+| 退出控制 | Claude 自己决定何时停下 | `stop-check.sh` 阻止退出直到验证通过 |
+| Session 恢复 | Claude 被提示后才读文件 | `session-init.sh` 自动打印状态 |
+| 可靠性 | 取决于上下文窗口和注意力 | 确定性的 shell 脚本，必定执行 |
+
+**建议**：正式开发用 hooks 模式，简单或实验性任务用纯 MD 模式。
+
 ## 依赖
 
-**无。** Harness 是 4 个纯 markdown 文件，使用 Claude Code 内置的 agents/commands/skills 机制。不需要 MCP 服务器、npm 包或其他插件。OpenSpec 也是可选的 — 可以单独使用 Harness。
+**无。** Harness 使用 markdown 文件 + bash hook 脚本，全部基于 Claude Code 内置机制。不需要 MCP 服务器、npm 包或其他插件。OpenSpec 也是可选的 — 可以单独使用 Harness。
 
 ## 安装
 
@@ -152,18 +202,22 @@ git clone https://github.com/yuchenhui/harness-spec.git
 # 进入你的项目
 cd ~/your-project
 
-# 复制模板
+# 复制模板（agents, commands, skills, hooks）
 cp -r /path/to/harness-spec/templates/.claude/ .claude/
 
 # 如果 .claude/ 目录已存在，手动合并：
-mkdir -p .claude/agents .claude/commands .claude/skills/progress-tracker
+mkdir -p .claude/agents .claude/commands .claude/skills/progress-tracker .claude/hooks
 cp /path/to/harness-spec/templates/.claude/agents/*.md .claude/agents/
 cp /path/to/harness-spec/templates/.claude/commands/*.md .claude/commands/
 cp /path/to/harness-spec/templates/.claude/skills/progress-tracker/SKILL.md .claude/skills/progress-tracker/
+cp /path/to/harness-spec/templates/.claude/hooks/* .claude/hooks/
+chmod +x .claude/hooks/*.sh
+
+# 将 hooks.json 合并到你的 .claude/settings.json（参考 hooks/hooks.json）
 
 # 提交
 git add .claude/
-git commit -m "chore: add harness engineering templates"
+git commit -m "chore: add harness engineering templates with hooks"
 ```
 
 手动安装后，命令通过以下方式调用：
@@ -181,6 +235,11 @@ git commit -m "chore: add harness engineering templates"
 │   └── fixer.md            ← 自动修复 agent
 ├── commands/
 │   └── harness-apply.md    ← harness-apply 命令
+├── hooks/
+│   ├── hooks.json          ← Hook 事件定义
+│   ├── stop-check.sh       ← 任务未完成时阻止退出
+│   ├── session-init.sh     ← Session 启动时自动加载进度
+│   └── post-tool-notify.sh ← git commit 后提醒评估
 └── skills/
     └── progress-tracker/
         └── SKILL.md        ← 跨 session 状态恢复
@@ -276,9 +335,15 @@ harness-spec/
 ├── skills/
 │   └── progress-tracker/
 │       └── SKILL.md
+├── hooks/                       # Hook 脚本（参考 ralph-wiggum）
+│   ├── hooks.json               #   Hook 事件定义
+│   ├── stop-check.sh            #   Stop hook — 任务未完成时阻止退出
+│   ├── session-init.sh          #   SessionStart — 自动加载进度
+│   └── post-tool-notify.sh      #   PostToolUse — commit 后提醒评估
 ├── templates/.claude/           # 手动安装布局（cp -r 使用）
 │   ├── agents/
 │   ├── commands/
+│   ├── hooks/
 │   └── skills/
 ├── docs/                        # 文档
 │   ├── getting-started.md       # 实际操作指南

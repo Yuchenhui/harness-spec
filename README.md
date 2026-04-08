@@ -38,6 +38,8 @@ OpenSpec (What to Build)          Harness (How to Build Reliably)
 
 ## 快速开始
 
+> 详细的使用指南见 [docs/getting-started.md](docs/getting-started.md)
+
 ### 1. 复制模板到你的项目
 
 ```bash
@@ -78,6 +80,7 @@ cp -r templates/.claude/ your-project/.claude/
 harness-spec/
 ├── README.md                          # 本文件
 ├── docs/
+│   ├── getting-started.md             # 使用指南（从这里开始）
 │   ├── architecture.md                # 架构设计与原理
 │   ├── workflow.md                    # 完整工作流指南
 │   ├── evaluation-loop.md             # 评估-修复循环详解

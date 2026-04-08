@@ -13,73 +13,80 @@
    - 如果有且部分 passes=true → 跳过 Phase 0 和 Phase 1，进入恢复模式（Phase 2）
    - 如果没有 → 继续
 
-3. **启动 Spec Reviewer subagent 审查 specs。**
+3. **启动 Spec Reviewer subagent 审查整套 change 文件。**
 
-   用 Task 工具启动 spec-reviewer agent，prompt 如下：
+   先确认 change 目录下有哪些文件（ls change 目录），然后启动 spec-reviewer agent：
 
    ---
-   请审查以下 change 的 specs 质量，输出结构化 JSON 报告：
+   请审查以下 change 的完整文件链路，输出结构化 JSON 报告：
 
    Change: $ARGUMENTS
-   Specs 文件: {specs.md 的路径}
-   Tasks 文件: {tasks.md 的路径}
-   Proposal 文件: {proposal.md 的路径}
+   Change 目录: {change 目录路径}
+   （目录下可能包含: proposal.md, design.md, specs.md, tasks.md）
    项目根目录: {pwd}
    ---
 
-4. **解析 Reviewer 的 JSON 报告，用 AskUserQuestion 逐项交互。**
+4. **解析 Reviewer 的 JSON 报告，按优先级用 AskUserQuestion 逐项交互。**
 
-   按以下顺序处理：
-
-   **4a. 如果 quality_score >= 8 且没有 insufficient 问题：**
-
-   用 AskUserQuestion 问用户：
+   **4a. 如果 quality_score >= 8 且没有严重问题：**
 
    ```
-   问题: "Spec 质量评分 {score}/10，{total} 条 scenario 全部合格。直接开始？"
+   问题: "Spec 质量评分 {score}/10，全链路检查通过。直接开始？"
    选项:
-     - "开始 (Recommended)" → 进入 Phase 1
-     - "我想先看详细报告" → 展示完整报告后再问
+     - "开始 (Recommended)"
+     - "我想先看详细报告"
    ```
 
-   **4b. 如果有 issues（需要修改的 scenario）：**
+   **4b. 如果有 design_gaps（design 中有决策但 specs 没覆盖）：**
 
-   对每个 issue，用 AskUserQuestion 问用户（可以批量，最多 4 个一组）：
+   这是最高优先级的问题——design 已经决定了技术方案，但 specs 没有对应的验证场景。
 
    ```
-   问题: "以下 scenario 需要补强，接受建议的修改吗？"
+   问题: "design.md 中的以下决策在 specs 中没有对应的测试场景。要补到 specs.md 吗？"
    选项（multiSelect: true）:
-     - "接受: '{原始}' → '{建议修改}'" 
-     - "接受: '{原始}' → '{建议修改}'"
+     - "补充: design 说 'JWT 1h 过期' → 添加 'Given expired token, Then 401'"
+     - "补充: design 说 'email unique' → 添加 'Given duplicate email, Then 409'"
+     - "全部跳过"
+   ```
+
+   **4c. 如果有 spec_issues（specs 中模糊或不可验证的 scenario）：**
+
+   ```
+   问题: "以下 scenario 需要补强，接受建议吗？"
+   选项（multiSelect: true）:
+     - "接受: '{原始}' → '{建议}'"
      - "跳过，保留原样"
      - "我自己改"
    ```
 
-   如果用户选 "我自己改"，等用户提供修改后继续。
-
-   **4c. 如果有 missing_scenarios（建议新增的场景）：**
-
-   用 AskUserQuestion 问用户：
+   **4d. 如果有 missing_scenarios（缺失的 error/edge cases）：**
 
    ```
-   问题: "Reviewer 建议为 '{feature}' 新增以下场景，要添加哪些？"
+   问题: "建议为 '{feature}' 新增以下场景："
    选项（multiSelect: true）:
-     - "[error] {建议的 scenario}" 
-     - "[edge] {建议的 scenario}"
-     - "[edge] {建议的 scenario}"
+     - "[error] {scenario} (来源: design_gap)"
+     - "[edge] {scenario} (来源: completeness)"
      - "全部跳过"
    ```
 
-   **4d. 如果有 unverifiable_scenarios：**
-
-   用 AskUserQuestion 问用户：
+   **4e. 如果有 unverifiable_scenarios：**
 
    ```
-   问题: "以下 scenario 无法自动验证，怎么处理？"
+   问题: "'{scenario}' 无法自动验证，怎么处理？"
    选项:
      - "降级为 L5 截图人工审查 (Recommended)"
      - "改写为具体断言（我来写）"
      - "删除这条 scenario"
+   ```
+
+   **4f. 如果有 task_alignment 问题：**
+
+   ```
+   问题: "tasks 和 specs 存在对齐问题："
+   选项（multiSelect: true）:
+     - "Task 'Add logging' 没有对应的 spec → 添加建议的 spec"
+     - "Spec 'expired token → 401' 没有对应的 task → 归入 task 'Add JWT middleware'"
+     - "跳过，不处理"
    ```
 
 5. **根据用户选择，回写到 OpenSpec 的 specs.md，保持单一来源。**

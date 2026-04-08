@@ -13,29 +13,43 @@
    - 如果有且部分 passes=true → 进入恢复模式（跳到 Phase 2，从第一个 passes=false 的任务开始）
    - 如果没有 → 继续初始化
 
-3. 读取 `tasks.md` 和 `specs.md`（如果存在），为每个任务生成 `feature_tests.json`：
+3. **启动 Initializer subagent 生成验证材料。**
 
-```json
-{
-  "change_id": "$ARGUMENTS",
-  "tasks": [
-    {
-      "id": "1.1",
-      "description": "任务描述",
-      "spec_scenarios": ["从 specs.md 提取的 Given/When/Then"],
-      "verification_commands": ["pytest tests/xxx.py -v"],
-      "passes": false,
-      "evaluation_attempts": 0
-    }
-  ]
-}
-```
+   用 Task 工具启动 verification-initializer agent，prompt 如下：
 
-生成 verification_commands 时：看项目用什么测试框架（pytest / jest / go test），生成对应命令。
+   ---
+   请为以下 change 生成完整的验证材料。
 
-4. 创建 `claude-progress.txt`，列出所有任务，状态为 pending。
+   Change: $ARGUMENTS
+   Specs 文件: {specs.md 的路径}
+   Tasks 文件: {tasks.md 的路径}
+   项目根目录: {pwd}
 
-5. Git commit 这两个文件：`git commit -m "harness: init feature_tests for $ARGUMENTS"`
+   请：
+   1. 读取 specs.md 和 tasks.md
+   2. 检查项目技术栈（package.json / requirements.txt / go.mod）
+   3. 为每个任务判断 verification_level (L1-L5)
+   4. 生成 feature_tests.json
+   5. 为 L2/L3 任务生成测试骨架文件（有具体断言，不是空壳）
+   6. 为 L3 任务生成 API 契约文件（可选）
+   7. 为 L4 任务生成浏览器场景文件
+   8. 生成必要的 conftest/fixtures
+   9. 报告 spec 覆盖率和任何质量问题
+   ---
+
+4. Initializer 完成后，验证生成的材料：
+   - 确认 feature_tests.json 已生成
+   - 确认每个 spec scenario 有对应测试
+   - 运行生成的测试确认它们当前全部 FAIL（因为实现还没写）
+   - 如果测试不是全部 FAIL（比如有些 pass 了），说明测试有问题或者实现已存在
+
+5. 创建 `claude-progress.txt`，列出所有任务，状态为 pending。
+
+6. Git commit 所有初始化文件：
+   ```bash
+   git add changes/$ARGUMENTS/ tests/
+   git commit -m "harness: initialize verification material for $ARGUMENTS"
+   ```
 
 ## Phase 2: 逐任务执行
 
@@ -43,13 +57,18 @@
 
 ### 2a. 编码
 
-告诉用户当前任务：
+告诉用户当前任务和验证级别：
 ```
---- Task {id}: {description} ---
-Scenarios: {列出}
+--- Task {id}: {description} [Level: {verification_level}] ---
+Scenarios: {列出 spec_scenarios}
+Pre-generated tests: {列出对应的测试函数}
 ```
 
-然后编写实现代码和测试。完成后：
+编写实现代码。**注意**：
+- 如果 `pre_generated_tests: true`，不要修改测试文件，只写实现让测试通过
+- 如果是 L4 任务，确保 UI 元素有 data-testid 属性（给 Playwright 用）
+
+完成后：
 ```bash
 git add <改动的文件>
 git commit -m "feat($ARGUMENTS): task {id} - {描述}"
@@ -59,22 +78,56 @@ git commit -m "feat($ARGUMENTS): task {id} - {描述}"
 
 **关键：用 Task 工具启动一个独立的 subagent 做评估，不要自己评估。**
 
-启动 subagent 时用以下 prompt：
+根据 verification_level 调整 evaluator 的 prompt：
 
+**L1/L2/L3 任务**：
 ---
 你是代码评估者。请验证以下任务的实现：
 
 任务: {id} - {description}
+验证级别: {verification_level}
 Spec Scenarios:
 {列出 spec_scenarios}
 
-请执行以下步骤：
+步骤：
 1. 运行验证命令：{列出 verification_commands}
-2. 检查每个 spec scenario 是否有对应的通过测试
-3. 输出结果，格式为：
+2. 如果有 setup_commands，先运行它们
+3. 检查每个 spec scenario 是否有对应的通过测试
+4. 如果有 teardown_commands，运行它们
+5. 输出 STATUS: PASS 或 FAIL
+---
 
-STATUS: PASS 或 FAIL
-FAILURES: （如果 FAIL，列出具体失败和原因）
+**L4 任务**：
+---
+你是 QA 工程师，做黑盒测试。不要读代码。
+
+任务: {id} - {description}
+
+先运行 setup_commands 启动服务：{setup_commands}
+
+然后使用 Playwright 浏览器工具按以下场景测试：
+{粘贴 browser_verification.scenarios}
+
+对每个场景：
+1. 按 steps 逐步操作
+2. 检查 assertions
+3. 关键步骤截图
+
+完成后运行 teardown_commands：{teardown_commands}
+
+输出 STATUS: PASS 或 FAIL
+---
+
+**L5 任务**：
+---
+你是 QA 工程师。
+
+先运行 setup_commands 启动服务。
+按 screenshots 配置截图：{browser_verification.screenshots}
+将截图保存在 changes/$ARGUMENTS/evaluations/screenshots/
+
+输出 STATUS: NEEDS_HUMAN_REVIEW
+附上截图路径列表。
 ---
 
 ### 2c. 根据评估结果处理
@@ -91,6 +144,7 @@ FAILURES: （如果 FAIL，列出具体失败和原因）
 
 规则：
 - 只修改评估中指出的问题
+- 不要修改 Initializer 生成的测试文件
 - 不要做额外重构
 - 修复后运行失败的测试确认通过
 - git commit 修复
@@ -100,8 +154,11 @@ Fixer 完成后，回到 2b 重新评估。
 
 **FAIL 且 attempts >= 3**: 停下来，告诉用户这个任务 3 次修复都没过，贴出最新的评估结果，问用户怎么处理。
 
+**NEEDS_HUMAN_REVIEW (L5)**: 告诉用户截图位置，暂停等待人工确认后继续。
+
 ## Phase 3: 完成
 
-所有任务 PASS 后，输出汇总：
-- 每个任务的通过情况（第几次通过）
+所有任务 PASS 后（L5 任务需要人工确认），输出汇总：
+- 每个任务的通过情况（级别、第几次通过）
+- Initializer 生成了多少测试，覆盖了多少 scenarios
 - 提示用户可以运行 `/opsx:verify` 和 `/opsx:archive`

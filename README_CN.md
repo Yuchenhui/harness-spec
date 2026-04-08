@@ -306,9 +306,10 @@ Session 中断后恢复：
 
 | 组件 | 文件路径 | 职责 |
 |------|---------|------|
+| **Initializer Agent** | `.claude/agents/initializer.md` | **在编码之前从 specs 生成验证材料（测试骨架、API 契约、浏览器场景）** |
 | Evaluator Agent | `.claude/agents/evaluator.md` | 在独立上下文中验证实现 |
 | Fixer Agent | `.claude/agents/fixer.md` | 根据评估报告做最小修复 |
-| Harness Apply | `.claude/commands/harness-apply.md` | 编排 apply → evaluate → fix 循环 |
+| Harness Apply | `.claude/commands/harness-apply.md` | 编排完整的 init → code → evaluate → fix 循环 |
 | Progress Tracker | `.claude/skills/progress-tracker/SKILL.md` | 管理 feature_tests.json 和进度状态 |
 
 ### 验证级别
@@ -380,6 +381,7 @@ harness-spec/
 | [docs/workflow.md](docs/workflow.md) | 完整工作流指南 |
 | [docs/evaluation-loop.md](docs/evaluation-loop.md) | 评估修复循环详解 |
 | [docs/best-practices.md](docs/best-practices.md) | Anthropic/OpenAI 最佳实践整理 |
+| [docs/acceptance-criteria.md](docs/acceptance-criteria.md) | 如何从 specs 构建足够的评审材料 |
 | [docs/verification-strategies.md](docs/verification-strategies.md) | 分层验证策略（L1-L5）与 Playwright |
 | [examples/openspec-integration.md](examples/openspec-integration.md) | 端到端集成示例 |
 

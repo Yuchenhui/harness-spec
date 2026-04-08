@@ -308,9 +308,10 @@ Then run:
 
 | Component | File | Role |
 |-----------|------|------|
+| **Initializer Agent** | `.claude/agents/initializer.md` | **Generates verification material from specs BEFORE coding** |
 | Evaluator Agent | `.claude/agents/evaluator.md` | Verifies implementation in independent context |
 | Fixer Agent | `.claude/agents/fixer.md` | Minimal code fixes based on evaluation reports |
-| Harness Apply | `.claude/commands/harness-apply.md` | Orchestrates the apply → evaluate → fix loop |
+| Harness Apply | `.claude/commands/harness-apply.md` | Orchestrates the full init → code → evaluate → fix loop |
 | Progress Tracker | `.claude/skills/progress-tracker/SKILL.md` | Manages feature_tests.json and progress state |
 
 ### Verification Levels
@@ -382,6 +383,7 @@ harness-spec/
 | [docs/workflow.md](docs/workflow.md) | Full workflow guide |
 | [docs/evaluation-loop.md](docs/evaluation-loop.md) | Evaluation-fix loop details |
 | [docs/best-practices.md](docs/best-practices.md) | Best practices from Anthropic/OpenAI |
+| [docs/acceptance-criteria.md](docs/acceptance-criteria.md) | How to build sufficient review material from specs |
 | [docs/verification-strategies.md](docs/verification-strategies.md) | Multi-level verification (L1-L5) with Playwright |
 | [examples/openspec-integration.md](examples/openspec-integration.md) | End-to-end integration example |
 

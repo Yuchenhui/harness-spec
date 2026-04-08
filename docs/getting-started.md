@@ -1,172 +1,426 @@
-# 实际操作指南
+# 完整使用指南
 
-## TL;DR — 三步开始用
+## TL;DR
 
 ```bash
-# 1. 把模板复制到你的项目
-cd ~/your-project
-cp -r /path/to/harness-spec/templates/.claude/ .claude/
+# 一次性安装（plugin 方式或手动复制）
+/plugin marketplace add yuchenhui/harness-spec
+/plugin install harness-spec@harness-spec
 
-# 2. 用 OpenSpec 正常创建提案和任务
-# /opsx:propose "xxx" → /opsx:specs → /opsx:tasks
-
-# 3. 用 /project:harness-apply 替代 /opsx:apply
-# /project:harness-apply add-xxx
+# 日常使用：只有一个命令不同
+/opsx:propose "add-xxx"                    # ← OpenSpec（不变）
+/opsx:specs                                # ← OpenSpec（不变）
+/opsx:tasks                                # ← OpenSpec（不变）
+/project:harness-apply add-xxx             # ← 用这个替代 /opsx:apply
+/opsx:verify                               # ← OpenSpec（不变）
+/opsx:archive                              # ← OpenSpec（不变）
 ```
-
-就这样。下面是详细说明。
 
 ---
 
-## 详细步骤
+## 安装（一次性）
 
-### Step 1: 安装模板
+### 方式 A：Plugin 安装
 
-把 `templates/.claude/` 目录复制到你的项目根目录：
+```bash
+/plugin marketplace add yuchenhui/harness-spec
+/plugin install harness-spec@harness-spec
+```
+
+### 方式 B：手动复制
 
 ```bash
 cd ~/your-project
-
-# 方法 A: 如果你已经 clone 了 harness-spec
-cp -r ~/harness-spec/templates/.claude/ .claude/
-
-# 方法 B: 如果 .claude 目录已存在（比如你已经有 settings.json）
-mkdir -p .claude/agents .claude/commands .claude/skills/progress-tracker
-cp ~/harness-spec/templates/.claude/agents/*.md .claude/agents/
-cp ~/harness-spec/templates/.claude/commands/*.md .claude/commands/
-cp ~/harness-spec/templates/.claude/skills/progress-tracker/SKILL.md .claude/skills/progress-tracker/
+cp -r /path/to/harness-spec/templates/.claude/ .claude/
+chmod +x .claude/hooks/*.sh
+git add .claude/ && git commit -m "chore: add harness templates"
 ```
 
-安装后的结构：
-
-```
-your-project/
-├── .claude/
-│   ├── agents/
-│   │   ├── evaluator.md      ← 新增
-│   │   └── fixer.md          ← 新增
-│   ├── commands/
-│   │   └── harness-apply.md  ← 新增（这就是你的 /project:harness-apply 命令）
-│   ├── skills/
-│   │   └── progress-tracker/
-│   │       └── SKILL.md      ← 新增
-│   └── settings.json         ← 你已有的（可选）
-├── CLAUDE.md
-└── ...
-```
-
-提交：
+### 方式 C：如果需要 UI 验证，额外安装 Playwright MCP
 
 ```bash
-git add .claude/
-git commit -m "chore: add harness engineering templates"
+npm install -D @playwright/mcp
+claude mcp add playwright -- npx @playwright/mcp@latest --headless
 ```
 
-### Step 2: 正常用 OpenSpec 创建提案
+安装后你的项目多了这些文件：
 
-这一步完全不变：
+```
+.claude/
+├── agents/
+│   ├── initializer.md     ← 从 specs 生成测试骨架（编码前运行）
+│   ├── evaluator.md       ← 独立验证实现
+│   └── fixer.md           ← 根据评估报告修复
+├── commands/
+│   └── harness-apply.md   ← /project:harness-apply 命令
+├── hooks/
+│   ├── stop-check.sh      ← 任务没完成不让退出
+│   ├── session-init.sh    ← 新 session 自动显示进度
+│   └── post-tool-notify.sh ← commit 后提醒评估
+└── skills/
+    └── progress-tracker/
+        └── SKILL.md       ← 跨 session 恢复
+```
+
+---
+
+## 完整使用流程
+
+### 第 1 步：用 OpenSpec 定义需求（不变）
 
 ```
 你: /opsx:propose "add-user-auth"
-    → OpenSpec 创建 changes/add-user-auth/proposal.md
+```
 
+OpenSpec 生成 proposal.md。你审查、调整。
+
+```
 你: /opsx:specs
-    → OpenSpec 创建 changes/add-user-auth/specs.md
+```
 
+OpenSpec 生成 specs.md，包含 Given/When/Then 场景。
+
+**提示**：specs 写得越具体，Initializer 生成的测试越好。好的 spec：
+
+```markdown
+# 好 — Initializer 能生成精确测试
+- Given valid email "test@example.com" and password "Pass123!"
+  When POST /auth/register with JSON body
+  Then response status is 201
+  And response body contains "user_id"
+  And response body does NOT contain "password"
+
+# 坏 — 太模糊，Initializer 会报告质量问题
+- The registration should work properly
+```
+
+```
 你: /opsx:tasks
-    → OpenSpec 创建 changes/add-user-auth/tasks.md
 ```
 
-### Step 3: 用 harness-apply 执行
+OpenSpec 拆解为 tasks.md。
 
-**原来你会这样做**：
-```
-你: /opsx:apply
-```
-Agent 一口气做完所有任务，自己判断自己做得对不对。
-
-**现在你这样做**：
-```
-你: /project:harness-apply add-user-auth
-```
-
-然后 Claude Code 会：
+此时你的 change 目录：
 
 ```
-📋 初始化: 读取 tasks.md，生成 feature_tests.json...
-✅ 初始化完成，共 5 个任务
-
---- Task 1.1: Create User model ---
-Scenarios:
-  - Given password, stored as bcrypt hash
-  - Given email query, returns user or None
-编码中...
-✅ 编码完成 (commit: abc1234)
-🔍 启动独立评估（subagent）...
-✅ Task 1.1: PASS
-
---- Task 1.2: Add /auth/register endpoint ---
-Scenarios:
-  - POST valid data → 201
-  - POST duplicate email → 409
-编码中...
-✅ 编码完成 (commit: def5678)
-🔍 启动独立评估（subagent）...
-❌ Task 1.2: FAIL — test_register_duplicate 失败 (500 != 409)
-🔧 启动修复（subagent, attempt 1/3）...
-🔍 重新评估...
-✅ Task 1.2: PASS (2nd attempt)
-
---- Task 2.1: Add /auth/login endpoint ---
-...
-
-🎉 全部 5 个任务通过！
+changes/add-user-auth/
+├── proposal.md       ← OpenSpec
+├── specs.md          ← OpenSpec
+└── tasks.md          ← OpenSpec
 ```
 
-### Step 4: 如果中途 session 断了
-
-下次打开 Claude Code：
+### 第 2 步：运行 harness-apply（替代 /opsx:apply）
 
 ```
 你: /project:harness-apply add-user-auth
 ```
 
-它会自动检测到 feature_tests.json 已存在，进入恢复模式：
+以下全部自动完成：
+
+---
+
+#### Phase 1：Initializer 生成验证材料
 
 ```
-🔄 恢复: add-user-auth (3/5 已完成)
-继续: Task 2.2 — Add JWT middleware
+🔧 Phase 1: 初始化
+   启动 Initializer subagent...
+
+   Initializer 正在：
+   ├── 读取 specs.md（12 个 scenarios）
+   ├── 读取 tasks.md（6 个任务）
+   ├── 检测项目技术栈：Python 3.12 / FastAPI / pytest
+   ├── 判断每个任务的验证级别...
+   │   ├── Task 1.1 Create User model        → L2 (Unit)
+   │   ├── Task 1.2 Add /auth/register       → L3 (Integration)
+   │   ├── Task 2.1 Add /auth/login          → L3 (Integration)
+   │   ├── Task 2.2 Add JWT middleware        → L2 (Unit)
+   │   ├── Task 3.1 Add login page           → L4 (E2E/Browser)
+   │   └── Task 3.2 Style login page         → L5 (Visual)
+   │
+   ├── 生成测试骨架文件...
+   │   ├── tests/models/test_user.py         (3 个测试函数)
+   │   ├── tests/api/test_auth.py            (7 个测试函数)
+   │   ├── tests/middleware/test_jwt.py       (4 个测试函数)
+   │   └── tests/conftest.py                 (更新: 新增 3 个 fixtures)
+   │
+   ├── 生成 API 契约文件...
+   │   └── tests/contracts/auth.json         (3 个端点, 8 个 case)
+   │
+   ├── 生成浏览器场景文件...
+   │   └── tests/e2e/login_scenarios.json    (2 个场景)
+   │
+   └── 生成 feature_tests.json
+
+   验证：运行所有测试确认当前全部 FAIL...
+   ✅ 14/14 测试 FAIL（正确 — 实现还没写）
+
+   Spec 覆盖率: 12/12 scenarios 有对应测试
+   额外边界测试: +2 个
+
+   ✅ Phase 1 完成 (commit: harness-init-abc123)
+```
+
+此时你的 change 目录：
+
+```
+changes/add-user-auth/
+├── proposal.md              ← OpenSpec
+├── specs.md                 ← OpenSpec
+├── tasks.md                 ← OpenSpec
+├── feature_tests.json       ← Harness (Initializer 生成)
+└── claude-progress.txt      ← Harness
+
+tests/                       ← Initializer 生成的测试（当前全部 FAIL）
+├── models/test_user.py
+├── api/test_auth.py
+├── middleware/test_jwt.py
+├── contracts/auth.json
+├── e2e/login_scenarios.json
+└── conftest.py
+```
+
+---
+
+#### Phase 2：逐任务执行 → 评估 → 修复
+
+```
+📋 Task 1.1: Create User model [L2: Unit]
+   Scenarios:
+     - Given password, stored as bcrypt hash
+     - Given email query, returns user or None
+   Pre-generated tests:
+     - tests/models/test_user.py::test_password_bcrypt
+     - tests/models/test_user.py::test_query_by_email
+     - tests/models/test_user.py::test_password_not_plaintext
+
+   编码中...（只写实现，不写测试）
+   ✅ 编码完成 (commit: feat-task-1.1)
+
+   🔍 启动 Evaluator subagent [L2 模式]...
+      运行 pytest tests/models/test_user.py -v
+      3/3 passed ✅
+      Scenario 覆盖: 2/2 ✅
+
+   ✅ Task 1.1: PASS (1st attempt)
+```
+
+```
+📋 Task 1.2: Add /auth/register [L3: Integration]
+   Scenarios:
+     - POST valid → 201
+     - POST duplicate → 409
+     - POST invalid email → 422
+   Pre-generated tests:
+     - tests/api/test_auth.py::test_register_201
+     - tests/api/test_auth.py::test_register_duplicate_409
+     - tests/api/test_auth.py::test_register_invalid_422
+
+   编码中...
+   ✅ 编码完成 (commit: feat-task-1.2)
+
+   🔍 启动 Evaluator subagent [L3 模式]...
+      启动服务: uvicorn app.main:app --port 8000
+      运行 pytest tests/api/test_auth.py -v
+      2/3 passed, 1 failed ❌
+        FAIL: test_register_duplicate_409 — assert 500 == 409
+
+   ❌ Task 1.2: FAIL (attempt 1/3)
+
+   🔧 启动 Fixer subagent...
+      读取评估报告: IntegrityError 未处理
+      修复: app/api/auth.py 添加 try/except
+      ✅ 修复完成 (commit: fix-task-1.2-attempt-1)
+
+   🔍 重新评估...
+      3/3 passed ✅
+
+   ✅ Task 1.2: PASS (2nd attempt, 1 fix)
+```
+
+```
+📋 Task 3.1: Add login page [L4: E2E/Browser]
+   Scenarios:
+     - Given login page, valid credentials → redirect to dashboard
+     - Given login page, invalid password → show error
+
+   编码中...（注意给 UI 元素加 data-testid）
+   ✅ 编码完成 (commit: feat-task-3.1)
+
+   🔍 启动 Evaluator subagent [L4 模式 — QA 工程师]...
+      启动服务: npm run dev
+      使用 Playwright MCP 浏览器工具...
+
+      场景 1: Successful login
+        ✅ Navigate to /login
+        ✅ Type email
+        ✅ Type password
+        ✅ Click login button
+        ✅ URL changed to /dashboard
+        📸 Screenshot saved
+
+      场景 2: Invalid password
+        ✅ Navigate to /login
+        ✅ Type wrong password
+        ✅ Click login button
+        ✅ Error message visible
+        📸 Screenshot saved
+
+   ✅ Task 3.1: PASS (1st attempt)
+```
+
+```
+📋 Task 3.2: Style login page [L5: Visual]
+
+   编码中...
+   ✅ 编码完成 (commit: feat-task-3.2)
+
+   🔍 启动 Evaluator subagent [L5 模式]...
+      截图:
+        📸 login-desktop (1920x1080) → evaluations/screenshots/login-desktop.png
+        📸 login-mobile (375x667) → evaluations/screenshots/login-mobile.png
+
+   ⏸️ Task 3.2: NEEDS_HUMAN_REVIEW
+      截图保存在 changes/add-user-auth/evaluations/screenshots/
+      请查看截图确认是否满意。
+```
+
+```
+你: 截图看起来不错，通过。
+```
+
+```
+   ✅ Task 3.2: PASS (human approved)
+```
+
+---
+
+#### Phase 3：完成
+
+```
+🎉 全部 6 个任务通过！
+
+Summary:
+  Task 1.1 [L2] PASS (1st attempt)
+  Task 1.2 [L3] PASS (2nd attempt, 1 auto-fix)
+  Task 2.1 [L3] PASS (1st attempt)
+  Task 2.2 [L2] PASS (1st attempt)
+  Task 3.1 [L4] PASS (1st attempt, browser verified)
+  Task 3.2 [L5] PASS (human reviewed)
+
+Initializer 生成: 14 个测试, 覆盖 12 个 spec scenarios
+Auto-fix: 1 次自动修复
+评估报告: changes/add-user-auth/evaluations/
+
+下一步:
+  /opsx:verify   ← 最终验证
+  /opsx:archive  ← 归档
+```
+
+---
+
+#### 如果中途 session 中断了
+
+Stop hook 会在退出前自动保存进度。下次打开 Claude Code：
+
+```
+--- Harness Status ---              ← session-init.sh 自动输出
+Active harness: add-user-auth
+Progress: 3/6 tasks passed
+
+Completed:
+  [x] 1.1 Create User model
+  [x] 1.2 Add register endpoint
+  [x] 2.1 Add login endpoint
+Remaining:
+  [ ] 2.2 Add JWT middleware
+  [ ] 3.1 Add login page
+  [ ] 3.2 Style login page
+
+Next: Task 2.2 - Add JWT middleware
+---
+```
+
+```
+你: /project:harness-apply add-user-auth
+```
+
+```
+🔄 恢复: add-user-auth (3/6 已完成)
+继续: Task 2.2 — Add JWT middleware [L2]
+```
+
+---
+
+#### 如果 Claude 试图提前退出
+
+```
+Claude: "我觉得差不多了，还有什么需要帮忙的吗？"
+                ↓
+        Stop hook 运行 → 检查 feature_tests.json
+                ↓
+        ❌ 3/6 tasks passed
+                ↓
+        Claude 被阻止退出，收到消息：
+        "Harness: 3/6 tasks passed. Remaining:
+          - Task 2.2: Add JWT middleware
+          - Task 3.1: Add login page
+          - Task 3.2: Style login page
+         Continue working."
+                ↓
+        Claude 自动继续工作
 ```
 
 ---
 
 ## 不用 OpenSpec 也能用
 
-如果你不用 OpenSpec，可以手动创建 `feature_tests.json`：
+跳过 OpenSpec，手动创建 specs 和 feature_tests.json：
 
 ```bash
 mkdir -p changes/my-feature
 ```
 
-然后创建 `changes/my-feature/feature_tests.json`：
+写一个简单的 specs 文件（给 Initializer 用）：
+
+```markdown
+# changes/my-feature/specs.md
+- Given GET /health, Then return 200 with {"status": "ok"}
+- Given GET /metrics, Then return prometheus text format
+```
+
+写一个 tasks 文件：
+
+```markdown
+# changes/my-feature/tasks.md
+- [ ] 1. Add health check endpoint
+- [ ] 2. Add metrics endpoint
+```
+
+然后运行：
+
+```
+/project:harness-apply my-feature
+```
+
+Initializer 会从 specs.md 生成测试，然后进入正常的编码→评估→修复循环。
+
+---
+
+## 也可以跳过 Initializer
+
+如果你已经手写了测试，直接创建 feature_tests.json 并设 `pre_generated_tests: true`：
 
 ```json
 {
   "change_id": "my-feature",
+  "evaluation_config": { "tdd_mode": false },
   "tasks": [
     {
       "id": "1",
       "description": "Add health check endpoint",
-      "spec_scenarios": ["GET /health returns 200 with status ok"],
+      "spec_scenarios": ["GET /health returns 200"],
+      "verification_level": "L2",
       "verification_commands": ["pytest tests/test_health.py -v"],
-      "passes": false,
-      "evaluation_attempts": 0
-    },
-    {
-      "id": "2",
-      "description": "Add metrics endpoint",
-      "spec_scenarios": ["GET /metrics returns prometheus format"],
-      "verification_commands": ["pytest tests/test_metrics.py -v"],
       "passes": false,
       "evaluation_attempts": 0
     }
@@ -174,57 +428,7 @@ mkdir -p changes/my-feature
 }
 ```
 
-然后：
-
-```
-你: /project:harness-apply my-feature
-```
-
-它会跳过初始化（因为 feature_tests.json 已存在），直接开始逐任务执行。
-
----
-
-## 单独使用 evaluator
-
-如果你手写了一些代码，只想让 evaluator 验证一下：
-
-```
-你: 请用 evaluator agent 验证 changes/my-feature 中 task 1 的实现。
-    verification_commands: ["pytest tests/test_health.py -v"]
-    spec_scenarios: ["GET /health returns 200 with status ok"]
-```
-
-Claude Code 会启动一个独立的 evaluator subagent，跑测试后告诉你 PASS 或 FAIL。
-
----
-
-## 调整模板（根据项目技术栈）
-
-如果你用的不是 Python/pytest，编辑 `.claude/agents/evaluator.md` 的 tools 部分：
-
-**Node.js 项目**：
-```yaml
-tools:
-  - Bash(npm test *)
-  - Bash(npx jest *)
-  - Bash(npx tsc --noEmit)
-```
-
-**Go 项目**：
-```yaml
-tools:
-  - Bash(go test *)
-  - Bash(go vet *)
-```
-
-**Java/Maven 项目**：
-```yaml
-tools:
-  - Bash(mvn test *)
-  - Bash(mvn verify *)
-```
-
-harness-apply.md 命令本身不需要改——它会根据项目结构自动判断用什么测试框架。
+harness-apply 检测到 feature_tests.json 已存在，跳过 Initializer，直接进入 Phase 2。
 
 ---
 
@@ -232,9 +436,20 @@ harness-apply.md 命令本身不需要改——它会根据项目结构自动判
 
 | 你输入的 | 作用 |
 |---------|------|
-| `/project:harness-apply <change-id>` | 开始或恢复执行 |
+| `/project:harness-apply <id>` | 开始或恢复执行（包含 Initializer + 评估循环） |
 | `/opsx:propose "xxx"` | 创建提案（OpenSpec，不变） |
 | `/opsx:specs` | 生成 specs（OpenSpec，不变） |
 | `/opsx:tasks` | 拆解任务（OpenSpec，不变） |
 | `/opsx:verify` | 最终验证（OpenSpec，不变） |
 | `/opsx:archive` | 归档（OpenSpec，不变） |
+
+## 组件速查
+
+| 组件 | 什么时候运行 | 做什么 |
+|------|-------------|--------|
+| **Initializer** | Phase 1（编码之前） | 把 specs 变成可执行的测试和验证材料 |
+| **Coding Agent** | Phase 2（你在用的 Claude） | 只写实现代码，让预生成的测试通过 |
+| **Evaluator** | 每个 task 完成后 | 独立 subagent 跑测试，PASS/FAIL |
+| **Fixer** | Evaluator 报 FAIL 时 | 独立 subagent 做最小修复 |
+| **Stop hook** | Claude 想退出时 | 检查 feature_tests.json，没完成就阻止 |
+| **Session hook** | 新 session 启动时 | 自动显示进度，告诉 Claude 从哪继续 |

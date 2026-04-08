@@ -154,13 +154,12 @@
    请为以下 change 生成完整的验证材料。
 
    Change: $ARGUMENTS
-   Verification Specs: {verification-specs.md 的路径，如果存在}
-   Fallback Specs: {specs.md 的路径，仅 verification-specs.md 不存在时}
+   Specs 文件: {specs.md 的路径}（已包含审查后的完整 scenarios）
    Tasks 文件: {tasks.md 的路径}
    项目根目录: {pwd}
 
    请：
-   1. 读取 specs.md 和 tasks.md
+   1. 读取 specs.md（已经过 Phase 0 审查补强）和 tasks.md
    2. 检查项目技术栈（package.json / requirements.txt / go.mod）
    3. 为每个任务判断 verification_level (L1-L5)
    4. 生成 feature_tests.json

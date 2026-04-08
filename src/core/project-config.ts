@@ -161,6 +161,36 @@ export function readProjectConfig(projectRoot: string): ProjectConfig | null {
 }
 
 /**
+ * Read phase-specific config (context + rules) from openspec/config.yaml.
+ * Returns the project context and any rules for the specified phase.
+ *
+ * @param projectRoot - The root directory of the project
+ * @param phase - The workflow phase ('apply', 'verify', or 'review')
+ * @returns Object with optional context string and rules array
+ */
+export function readPhaseConfig(
+  projectRoot: string,
+  phase: 'apply' | 'verify' | 'review'
+): { context?: string; rules?: string[] } {
+  const config = readProjectConfig(projectRoot);
+  if (!config) {
+    return {};
+  }
+
+  const result: { context?: string; rules?: string[] } = {};
+
+  if (config.context) {
+    result.context = config.context;
+  }
+
+  if (config.rules && config.rules[phase]) {
+    result.rules = config.rules[phase];
+  }
+
+  return result;
+}
+
+/**
  * Validate artifact IDs in rules against a schema's artifacts.
  * Called during instruction loading (when schema is known).
  * Returns warnings for unknown artifact IDs.

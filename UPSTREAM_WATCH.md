@@ -8,11 +8,11 @@ Tracked as of 2026-04-08. Our base: OpenSpec v1.2.0 (commit `64d476f`).
 
 | PR | Title | Why It Matters | Our Module |
 |----|-------|---------------|------------|
-| **#843** | fix: scenario-level merge for MODIFIED requirements | Fixes bug in delta spec merge logic — **we use `specs-apply.ts` directly** | `src/core/specs-apply.ts` |
-| **#887** | feat: inject config.yaml context and rules into apply/verify | Injects project context into workflows — improves our apply + verify quality | `src/core/templates/workflows/` |
-| **#839** | feat: hierarchical specs | Parent/child spec trees with inheritance — major artifact-graph enhancement | `src/core/artifact-graph/` |
-| **#902** | feat: sub-agent spec discovery in proposals | Auto-discovers existing specs during propose — improves proposal quality | `src/core/templates/workflows/propose.ts` |
-| **#893** | feat: `/opsx:refine` with scratchpad-based review | Scratchpad review concept — may yield ideas for our `review` workflow | `src/core/templates/workflows/review.ts` |
+| **#843** | fix: scenario-level merge for MODIFIED | Fixes data-loss bug in delta spec merge | `specs-apply.ts`, `requirement-blocks.ts` | **INTEGRATED** |
+| **#887** | feat: config.yaml injection | Injects project context into apply/verify | `project-config.ts`, `shared.ts` | **INTEGRATED (infra)** |
+| **#839** | feat: hierarchical specs | Parent/child spec trees | `artifact-graph/`, `specs-apply.ts` | Watching |
+| **#902** | feat: sub-agent spec discovery | Auto-discovers existing specs during propose | `propose.ts` | Skipped (blocked) |
+| **#893** | feat: /opsx:refine scratchpad | Scratchpad-based artifact review | `review.ts` | Watching |
 
 ### Issues to Monitor
 
@@ -65,8 +65,8 @@ npx tsc --noEmit && npm test
 
 ## Action Items
 
-- [ ] When PR #843 merges: port scenario-level merge fix to `src/core/specs-apply.ts`
-- [ ] When PR #887 merges: port config injection to apply/verify workflows
+- [x] PR #843: scenario-level merge fix — **INTEGRATED** (2026-04-08)
+- [x] PR #887: config injection infra — **INTEGRATED** (2026-04-08, templates need manual adaptation)
 - [ ] When PR #839 merges: evaluate hierarchical specs for our artifact-graph
 - [ ] When PR #902 merges: port spec discovery to propose workflow
 - [ ] Check Issue #869 — if they fix the "Claude skips workflow" prompt issue, apply same fix to our workflows

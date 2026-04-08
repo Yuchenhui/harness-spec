@@ -12,7 +12,11 @@ import {
   extractRequirementsSection,
   parseDeltaSpec,
   normalizeRequirementName,
+  parseScenarios,
+  hasScenarioTags,
+  normalizeScenarioName,
   type RequirementBlock,
+  type ScenarioBlock,
 } from './parsers/requirement-blocks.js';
 import { Validator } from './validation/validator.js';
 
@@ -282,7 +286,104 @@ export async function buildUpdatedSpec(
         `${specName} MODIFIED failed for header "### Requirement: ${mod.name}" - header mismatch in content`
       );
     }
-    nameToBlock.set(key, mod);
+
+    // Scenario-level merge: if the delta has scenario tags, merge at scenario level
+    const deltaScenarios = parseScenarios(mod.raw);
+    if (hasScenarioTags(deltaScenarios)) {
+      const mainBlock = nameToBlock.get(key)!;
+      const mainScenarios = parseScenarios(mainBlock.raw);
+
+      // Build a map of main scenarios by normalized name for lookup
+      const mainScenarioMap = new Map<string, ScenarioBlock>();
+      for (const s of mainScenarios) {
+        if (s.name) {
+          mainScenarioMap.set(s.name, s);
+        }
+      }
+
+      // Track which main scenarios were touched (modified or removed)
+      const touchedNames = new Set<string>();
+
+      // Process delta scenarios
+      const resultScenarios: ScenarioBlock[] = [];
+
+      // Preserve preamble from main (nameless block)
+      const mainPreamble = mainScenarios.find((s) => s.name === '');
+      if (mainPreamble) {
+        resultScenarios.push(mainPreamble);
+      }
+
+      // Collect new (untagged) delta scenarios to append later
+      const newScenarios: ScenarioBlock[] = [];
+
+      for (const ds of deltaScenarios) {
+        if (!ds.name) continue; // skip preamble from delta
+
+        if (ds.tag === 'MODIFIED') {
+          touchedNames.add(ds.name);
+          // Replace content: strip the (MODIFIED) tag from the header in content
+          const cleanedContent = ds.content.replace(/\(MODIFIED\)\s*$/m, '').trimEnd();
+          resultScenarios.push({ name: ds.name, content: cleanedContent });
+        } else if (ds.tag === 'REMOVED') {
+          touchedNames.add(ds.name);
+          // Just mark as touched so it gets excluded from preserved scenarios
+        } else {
+          // Untagged delta scenario: append as new
+          newScenarios.push(ds);
+        }
+      }
+
+      // Preserve untouched main scenarios (in original order)
+      const preservedScenarios: ScenarioBlock[] = [];
+      for (const ms of mainScenarios) {
+        if (!ms.name) continue; // preamble already handled
+        if (!touchedNames.has(ms.name)) {
+          preservedScenarios.push(ms);
+        }
+      }
+
+      // Rebuild: preamble + preserved (in order) with modified replacements + new appended
+      // We need to maintain original order: iterate main scenarios, replace modified, skip removed, then append new
+      const orderedScenarios: ScenarioBlock[] = [];
+
+      // Add preamble if present
+      if (mainPreamble) {
+        orderedScenarios.push(mainPreamble);
+      }
+
+      // Walk main scenarios in order, applying modifications
+      for (const ms of mainScenarios) {
+        if (!ms.name) continue; // preamble already added
+        if (touchedNames.has(ms.name)) {
+          // Check if it was modified (not removed)
+          const deltaSc = deltaScenarios.find((ds) => ds.name === ms.name && ds.tag === 'MODIFIED');
+          if (deltaSc) {
+            const cleanedContent = deltaSc.content.replace(/\(MODIFIED\)\s*$/m, '').trimEnd();
+            orderedScenarios.push({ name: ms.name, content: cleanedContent });
+          }
+          // If REMOVED, skip (don't add to orderedScenarios)
+        } else {
+          orderedScenarios.push(ms);
+        }
+      }
+
+      // Append new untagged scenarios
+      for (const ns of newScenarios) {
+        orderedScenarios.push(ns);
+      }
+
+      // Rebuild the requirement block raw content
+      const headerLine = mod.raw.split('\n')[0].replace(/\(MODIFIED\)\s*$/, '').trimEnd();
+      const rebuiltParts = [headerLine];
+      for (const s of orderedScenarios) {
+        rebuiltParts.push(s.content);
+      }
+      const rebuiltRaw = rebuiltParts.join('\n\n').trimEnd();
+      nameToBlock.set(key, { headerLine: mainBlock.headerLine, name: key, raw: rebuiltRaw });
+    } else {
+      // No scenario tags: backward-compatible full block replacement
+      nameToBlock.set(key, mod);
+    }
   }
 
   // ADDED

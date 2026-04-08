@@ -35,6 +35,10 @@ export interface ApplyInstructions {
   state: 'blocked' | 'all_done' | 'ready';
   missingArtifacts?: string[];
   instruction: string;
+  /** Project-level context from openspec/config.yaml */
+  context?: string;
+  /** Phase-specific rules from openspec/config.yaml */
+  rules?: string[];
 }
 
 // -----------------------------------------------------------------------------

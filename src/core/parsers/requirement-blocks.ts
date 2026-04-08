@@ -232,3 +232,93 @@ function parseRenamedPairs(sectionBody: string): Array<{ from: string; to: strin
   }
   return pairs;
 }
+
+// -----------------------------------------------------------------------------
+// Scenario-level parsing (PR #843)
+// -----------------------------------------------------------------------------
+
+export interface ScenarioBlock {
+  name: string;
+  tag?: 'MODIFIED' | 'REMOVED';
+  content: string; // full scenario text including header
+}
+
+const SCENARIO_HEADER_REGEX = /^####\s+Scenario:\s*(.+)\s*$/;
+const SCENARIO_TAG_REGEX = /\((?:MODIFIED|REMOVED)\)\s*$/;
+
+/**
+ * Normalize a scenario name by trimming whitespace and stripping any trailing
+ * (MODIFIED) or (REMOVED) tags, then lowercasing for comparison.
+ */
+export function normalizeScenarioName(name: string): string {
+  return name.replace(/\s*\((?:MODIFIED|REMOVED)\)\s*$/, '').trim().toLowerCase();
+}
+
+/**
+ * Extract the scenario tag (MODIFIED or REMOVED) from a scenario header line.
+ * Returns null if no tag is present.
+ */
+export function extractScenarioTag(header: string): 'MODIFIED' | 'REMOVED' | null {
+  const match = header.match(/\((MODIFIED|REMOVED)\)\s*$/);
+  if (!match) return null;
+  return match[1] as 'MODIFIED' | 'REMOVED';
+}
+
+/**
+ * Check whether any scenario in the list has a (MODIFIED) or (REMOVED) tag.
+ */
+export function hasScenarioTags(scenarios: ScenarioBlock[]): boolean {
+  return scenarios.some((s) => s.tag != null);
+}
+
+/**
+ * Parse the content of a single requirement block into scenario blocks.
+ * Lines before the first scenario header are preserved as a preamble scenario
+ * with an empty name.
+ */
+export function parseScenarios(requirementContent: string): ScenarioBlock[] {
+  const lines = normalizeLineEndings(requirementContent).split('\n');
+  const scenarios: ScenarioBlock[] = [];
+  let cursor = 0;
+
+  // Skip requirement header line (### Requirement: ...) if present
+  if (cursor < lines.length && /^###\s+Requirement:/.test(lines[cursor])) {
+    cursor++;
+  }
+
+  // Collect preamble lines (content before first scenario header)
+  const preambleLines: string[] = [];
+  while (cursor < lines.length && !SCENARIO_HEADER_REGEX.test(lines[cursor])) {
+    preambleLines.push(lines[cursor]);
+    cursor++;
+  }
+
+  // If there's preamble content, store it as a nameless block
+  const preambleText = preambleLines.join('\n').trim();
+  if (preambleText) {
+    scenarios.push({ name: '', content: preambleText });
+  }
+
+  // Parse scenario blocks
+  while (cursor < lines.length) {
+    const headerLine = lines[cursor];
+    const headerMatch = headerLine.match(SCENARIO_HEADER_REGEX);
+    if (!headerMatch) {
+      cursor++;
+      continue;
+    }
+    const rawName = headerMatch[1].trim();
+    const tag = extractScenarioTag(rawName);
+    const name = normalizeScenarioName(rawName);
+
+    const buf: string[] = [headerLine];
+    cursor++;
+    while (cursor < lines.length && !SCENARIO_HEADER_REGEX.test(lines[cursor])) {
+      buf.push(lines[cursor]);
+      cursor++;
+    }
+    scenarios.push({ name, tag: tag ?? undefined, content: buf.join('\n').trimEnd() });
+  }
+
+  return scenarios;
+}

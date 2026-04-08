@@ -179,7 +179,9 @@ This solves the **self-evaluation bias** problem mechanically: Claude can't just
 
 ## Dependencies
 
-**None.** Harness uses markdown files + bash hook scripts, all leveraging Claude Code's built-in mechanisms. No MCP servers, no npm packages, no additional plugins required. OpenSpec is optional — you can use Harness standalone.
+**Plugin install** (Method 1): No dependencies. Pure markdown files using Claude Code's built-in agents/commands/hooks.
+
+**CLI install** (Method 2 / npm): Requires Node.js >= 20. The CLI has runtime dependencies (commander, zod, yaml, chalk) installed automatically via npm. Playwright MCP is optional (only for L4/L5 browser testing).
 
 ## Installation
 
@@ -234,14 +236,15 @@ After manual installation, the command is available as:
 ### What Gets Installed
 
 ```
-.claude/  (or plugin namespace)
+.claude/
 ├── agents/
-│   ├── evaluator.md        ← Independent verification agent
-│   └── fixer.md            ← Auto-repair agent
+│   ├── spec-reviewer.md    ← Spec quality review (Phase 0)
+│   ├── initializer.md      ← Test generation from specs (Phase 1)
+│   ├── evaluator.md        ← Independent verification (Phase 2)
+│   └── fixer.md            ← Auto-repair (Phase 2)
 ├── commands/
 │   └── harness-apply.md    ← /harness-apply command
 ├── hooks/
-│   ├── hooks.json          ← Hook event definitions
 │   ├── stop-check.sh       ← Blocks exit until all tasks pass
 │   ├── session-init.sh     ← Auto-loads progress at session start
 │   └── post-tool-notify.sh ← Reminds to evaluate after git commit

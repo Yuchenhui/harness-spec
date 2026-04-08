@@ -2,40 +2,27 @@
 # Harness Stop Hook
 # Inspired by ralph-wiggum (Anthropic official plugin)
 #
-# This hook fires when Claude tries to stop/exit.
-# It checks if all tasks in feature_tests.json have passed.
-# If not, it blocks the exit and tells Claude to continue.
+# Checks feature_tests.json — blocks exit if any task has passes: false.
+# Uses python3 for JSON generation to avoid escaping issues.
 #
-# Returns:
-#   exit 0 + JSON {"decision":"allow"} → Claude can stop
-#   exit 2 + JSON {"decision":"block","reason":"..."} → Claude must continue
-#
-# Safety: checks stop_hook_active to prevent infinite loops.
-# On the second pass (Claude was already blocked once and tried to stop again),
-# we allow exit to avoid getting stuck.
+# Returns JSON to stdout:
+#   {"decision":"allow"}              → Claude can stop (exit 0)
+#   {"decision":"block","reason":"…"} → Claude must continue (exit 2)
 
-# Read stdin for event data (contains stop_hook_active field)
-INPUT=$(cat)
-
-# CRITICAL: Infinite loop guard
-# If stop_hook_active is true, Claude was already blocked once in this turn.
-# Allow exit to prevent infinite block loops.
-STOP_HOOK_ACTIVE=$(echo "$INPUT" | python3 -c "
-import json, sys
-try:
-    data = json.load(sys.stdin)
-    print(str(data.get('stop_hook_active', False)).lower())
-except:
-    print('false')
-" 2>/dev/null)
-
-if [ "$STOP_HOOK_ACTIVE" = "true" ]; then
-  echo '{"decision":"allow"}'
-  exit 0
+# Infinite loop guard: use a lockfile to detect repeated blocking.
+# If we blocked within the last 30 seconds, allow exit to prevent infinite loops.
+LOCKFILE="/tmp/harness-stop-hook-blocked"
+if [ -f "$LOCKFILE" ]; then
+  LOCK_AGE=$(( $(date +%s) - $(stat -c %Y "$LOCKFILE" 2>/dev/null || echo 0) ))
+  if [ "$LOCK_AGE" -lt 30 ]; then
+    echo '{"decision":"allow"}'
+    rm -f "$LOCKFILE"
+    exit 0
+  fi
 fi
 
-# Find the active feature_tests.json
-FEATURE_TESTS=$(find . -path '*/changes/*/feature_tests.json' -newer .git/HEAD 2>/dev/null | head -1)
+# Find active feature_tests.json (no -newer filter — avoid race conditions)
+FEATURE_TESTS=$(find . -path '*/changes/*/feature_tests.json' 2>/dev/null | head -1)
 
 # If no feature_tests.json exists, allow exit (not in harness mode)
 if [ -z "$FEATURE_TESTS" ]; then
@@ -43,48 +30,46 @@ if [ -z "$FEATURE_TESTS" ]; then
   exit 0
 fi
 
-# Check if all tasks pass
-TOTAL=$(python3 -c "
+# Use python3 to parse AND produce valid JSON (avoids shell escaping issues)
+RESULT=$(python3 -c "
 import json, sys
-with open('$FEATURE_TESTS') as f:
-    data = json.load(f)
-tasks = data.get('tasks', [])
-print(len(tasks))
-" 2>/dev/null)
 
-PASSED=$(python3 -c "
-import json, sys
-with open('$FEATURE_TESTS') as f:
-    data = json.load(f)
+try:
+    with open('$FEATURE_TESTS') as f:
+        data = json.load(f)
+except:
+    print(json.dumps({'decision': 'allow'}))
+    sys.exit(0)
+
 tasks = data.get('tasks', [])
+total = len(tasks)
 passed = [t for t in tasks if t.get('passes')]
-print(len(passed))
-" 2>/dev/null)
-
-FAILED_TASKS=$(python3 -c "
-import json, sys
-with open('$FEATURE_TESTS') as f:
-    data = json.load(f)
-tasks = data.get('tasks', [])
 failed = [t for t in tasks if not t.get('passes')]
-for t in failed:
-    print(f\"  - Task {t['id']}: {t['description']}\")
+
+if len(passed) == total:
+    print(json.dumps({'decision': 'allow'}))
+else:
+    remaining = []
+    for t in failed:
+        remaining.append(f\"  - Task {t['id']}: {t['description']}\")
+    reason = f\"Harness: {len(passed)}/{total} tasks passed. Remaining:\\n\" + '\\n'.join(remaining) + '\\nContinue working on the next failing task.'
+    print(json.dumps({'decision': 'block', 'reason': reason}))
 " 2>/dev/null)
 
-# If parsing failed, allow exit
-if [ -z "$TOTAL" ] || [ -z "$PASSED" ]; then
+# If python3 failed, allow exit
+if [ -z "$RESULT" ]; then
   echo '{"decision":"allow"}'
   exit 0
 fi
 
-# All passed → allow exit
-if [ "$PASSED" = "$TOTAL" ]; then
-  echo '{"decision":"allow"}'
+# Check if we're blocking — if so, create lockfile for loop guard
+DECISION=$(echo "$RESULT" | python3 -c "import json,sys; print(json.load(sys.stdin).get('decision','allow'))" 2>/dev/null)
+if [ "$DECISION" = "block" ]; then
+  touch "$LOCKFILE"
+  echo "$RESULT"
+  exit 2
+else
+  rm -f "$LOCKFILE"
+  echo "$RESULT"
   exit 0
 fi
-
-# Not all passed → block exit, tell Claude to continue
-REASON="Harness: $PASSED/$TOTAL tasks passed. Remaining tasks:\n$FAILED_TASKS\n\nContinue working on the next failing task. Run evaluator subagent after implementation."
-
-echo "{\"decision\":\"block\",\"reason\":\"$REASON\"}"
-exit 2

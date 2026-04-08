@@ -1,0 +1,65 @@
+# Test Strategy Configuration
+# Place this file in your project's openspec/ directory to customize
+# how init-tests generates verification material.
+#
+# If this file doesn't exist, init-tests uses auto-detection.
+
+# Project type detection override (auto-detected if not set)
+# project_type: backend | frontend | fullstack | cli | library
+
+# Test framework override (auto-detected from package.json/requirements.txt)
+# test_framework: pytest | jest | vitest | go_test | junit
+
+# Frontend test configuration
+frontend:
+  # Browser mode for Playwright tests
+  # headless: true (default) — no visible browser, faster, CI-compatible
+  # headless: false — visible browser, useful for debugging
+  headless: true
+
+  # Base URL for the dev server
+  # base_url: http://localhost:3000
+
+  # Command to start the dev server
+  # dev_server: npm run dev
+
+  # Wait time after starting dev server (seconds)
+  # dev_server_wait: 5
+
+  # Viewport sizes for visual tests
+  viewports:
+    desktop: [1920, 1080]
+    tablet: [768, 1024]
+    mobile: [375, 667]
+
+# Backend test configuration
+backend:
+  # Command to start the API server (for integration tests)
+  # api_server: python -m uvicorn app.main:app --port 8000
+  # api_server_wait: 3
+
+  # Base URL for API tests
+  # api_base_url: http://localhost:8000
+
+  # Database fixture strategy
+  # db_strategy: transaction_rollback | truncate | sqlite_memory
+  db_strategy: transaction_rollback
+
+# Regression test configuration
+regression:
+  # Whether to generate regression tests for modified features
+  enabled: true
+
+  # How to find existing tests to protect
+  # existing_tests: auto — scan test directories for existing test files
+  # existing_tests: manifest — read from a test manifest file
+  existing_tests: auto
+
+# Verification level overrides per task pattern
+# Use glob patterns to force specific levels
+level_overrides:
+  # Examples:
+  # "*.model*": L2
+  # "*.api*": L3
+  # "*.page*": L4
+  # "*.style*": L5

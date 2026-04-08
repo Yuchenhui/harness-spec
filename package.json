@@ -34,6 +34,13 @@
     "dist",
     "bin",
     "schemas",
+    "agents/evaluator.md",
+    "agents/fixer.md",
+    "agents/spec-reviewer.md",
+    "agents/initializer.md",
+    "hooks",
+    "templates",
+    ".claude-plugin",
     "!dist/**/*.test.js",
     "!dist/**/__tests__",
     "!dist/**/*.map"

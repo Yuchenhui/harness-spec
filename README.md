@@ -355,33 +355,43 @@ Edit `.claude/agents/evaluator.md` tools section:
 
 ```
 harness-spec/
-├── .claude-plugin/
-│   ├── plugin.json              # Plugin manifest (for /plugin install)
-│   └── marketplace.json         # Marketplace manifest (for /plugin marketplace add)
-├── agents/                      # Plugin layout (used by /plugin install)
-│   ├── evaluator.md
-│   └── fixer.md
-├── commands/
-│   └── harness-apply.md
-├── skills/
-│   └── progress-tracker/
-│       └── SKILL.md
-├── hooks/                       # Hook scripts (inspired by ralph-wiggum)
-│   ├── hooks.json               #   Hook event definitions
-│   ├── stop-check.sh            #   Stop hook — blocks exit until tasks pass
-│   ├── session-init.sh          #   SessionStart — auto-loads progress
-│   └── post-tool-notify.sh      #   PostToolUse — reminds to evaluate
-├── templates/.claude/           # Manual install layout (used by cp -r)
-│   ├── agents/
-│   ├── commands/
-│   ├── hooks/
-│   └── skills/
-├── docs/
-│   ├── getting-started.md
-│   ├── architecture.md
-│   ├── workflow.md
-│   ├── evaluation-loop.md
-│   └── best-practices.md
+├── src/                         # TypeScript source (OpenSpec core + harness extensions)
+│   ├── core/
+│   │   ├── artifact-graph/      #   DAG dependency system (from OpenSpec)
+│   │   ├── specs-apply.ts       #   Delta spec merge (from OpenSpec)
+│   │   ├── hooks.ts             #   Hook installation logic
+│   │   ├── playwright-config.ts #   Playwright MCP configuration
+│   │   └── templates/workflows/ #   Workflow prompt templates
+│   │       ├── propose.ts       #     OpenSpec propose (kept)
+│   │       ├── review.ts        #     Harness spec review (new)
+│   │       ├── init-tests.ts    #     Harness test initialization (new)
+│   │       ├── apply-change.ts  #     Harness apply loop (replaced)
+│   │       └── verify-change.ts #     Harness verify L1-L5 (enhanced)
+│   └── ...
+├── agents/                      # Agent definitions (4 core + 16 specialist)
+│   ├── evaluator.md             #   Core: independent verification
+│   ├── fixer.md                 #   Core: auto-repair (cannot modify tests)
+│   ├── spec-reviewer.md         #   Core: spec quality review
+│   ├── initializer.md           #   Core: test generation from specs
+│   ├── python-expert.md         #   Specialist: @-mention during coding
+│   ├── backend-architect.md     #   Specialist: @-mention during design
+│   └── ...                      #   (16 more specialist agents)
+├── commands/                    # Slash commands
+│   ├── harness-apply.md         #   /project:harness-apply
+│   └── git-commit.md            #   /project:git-commit
+├── hooks/                       # Claude Code hooks
+│   ├── stop-check.sh            #   Blocks exit until tasks pass
+│   ├── session-init.sh          #   Auto-loads progress at session start
+│   ├── post-tool-notify.sh      #   Reminds to evaluate after commit
+│   └── hooks.json               #   Hook event definitions
+├── schemas/
+│   ├── harness-driven/          #   Harness workflow schema (default)
+│   └── spec-driven/             #   Original OpenSpec schema (fallback)
+├── templates/.claude/           # Manual install layout (cp -r)
+├── .claude-plugin/              # Plugin marketplace manifest
+├── upstream-openspec/           # OpenSpec v1.2.0 source (reference)
+├── docs/                        # Documentation
+└── package.json                 # harness-spec v0.1.0
 └── examples/
     └── openspec-integration.md
 ```

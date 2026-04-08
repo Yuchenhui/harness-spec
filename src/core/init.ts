@@ -53,7 +53,7 @@ const { version: OPENSPEC_VERSION } = require('../../package.json');
 // Constants
 // -----------------------------------------------------------------------------
 
-const DEFAULT_SCHEMA = 'spec-driven';
+const DEFAULT_SCHEMA = 'harness-driven';
 
 const PROGRESS_SPINNER = {
   interval: 80,
@@ -571,30 +571,43 @@ export class InitCommand {
         }
 
         // Generate harness agent files (.claude/agents/)
+        // Find package root: this file is at dist/core/init.js, package root is ../..
         if (tool.value === 'claude') {
+          const packageRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..', '..');
           const agentsDir = path.join(projectPath, tool.skillsDir, 'agents');
           await FileSystemUtils.createDirectory(agentsDir);
           const agentFiles = ['evaluator.md', 'fixer.md', 'spec-reviewer.md', 'initializer.md'];
           for (const agentFile of agentFiles) {
-            const sourcePath = path.join(path.dirname(new URL(import.meta.url).pathname), '..', '..', 'agents', agentFile);
-            if (fs.existsSync(sourcePath)) {
-              const content = await fs.promises.readFile(sourcePath, 'utf8');
-              await FileSystemUtils.writeFile(path.join(agentsDir, agentFile), content);
+            // Try package root first (npm install), then templates (dev mode)
+            const candidates = [
+              path.join(packageRoot, 'agents', agentFile),
+              path.join(packageRoot, 'templates', '.claude', 'agents', agentFile),
+            ];
+            for (const sourcePath of candidates) {
+              if (fs.existsSync(sourcePath)) {
+                const content = await fs.promises.readFile(sourcePath, 'utf8');
+                await FileSystemUtils.writeFile(path.join(agentsDir, agentFile), content);
+                break;
+              }
             }
           }
-        }
 
-        // Generate harness hook scripts (.claude/hooks/)
-        if (tool.value === 'claude') {
+          // Generate harness hook scripts (.claude/hooks/)
           const hooksDir = path.join(projectPath, tool.skillsDir, 'hooks');
           await FileSystemUtils.createDirectory(hooksDir);
           const hookFiles = ['stop-check.sh', 'session-init.sh', 'post-tool-notify.sh', 'hooks.json'];
           for (const hookFile of hookFiles) {
-            const sourcePath = path.join(path.dirname(new URL(import.meta.url).pathname), '..', '..', 'hooks', hookFile);
-            if (fs.existsSync(sourcePath)) {
-              const content = await fs.promises.readFile(sourcePath, 'utf8');
-              const mode = hookFile.endsWith('.sh') ? 0o755 : 0o644;
-              await fs.promises.writeFile(path.join(hooksDir, hookFile), content, { mode });
+            const candidates = [
+              path.join(packageRoot, 'hooks', hookFile),
+              path.join(packageRoot, 'templates', '.claude', 'hooks', hookFile),
+            ];
+            for (const sourcePath of candidates) {
+              if (fs.existsSync(sourcePath)) {
+                const content = await fs.promises.readFile(sourcePath, 'utf8');
+                const mode = hookFile.endsWith('.sh') ? 0o755 : 0o644;
+                await fs.promises.writeFile(path.join(hooksDir, hookFile), content, { mode });
+                break;
+              }
             }
           }
         }

@@ -1,23 +1,38 @@
 {
-  "hooks": [
-    {
-      "event": "Stop",
-      "command": ".claude/hooks/stop-check.sh",
-      "description": "Blocks exit if harness tasks are incomplete. Inspired by ralph-wiggum."
-    },
-    {
-      "event": "SessionStart",
-      "command": ".claude/hooks/session-init.sh",
-      "description": "Loads harness progress state at session start."
-    },
-    {
-      "event": "PostToolUse",
-      "matcher": {
-        "tool": "Bash",
-        "input_contains": "git commit"
-      },
-      "command": ".claude/hooks/post-tool-notify.sh",
-      "description": "Reminds Claude to run evaluator after git commit."
-    }
-  ]
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/stop-check.sh",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/session-init.sh",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/post-tool-notify.sh",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
 }

@@ -9,6 +9,30 @@
 # Returns:
 #   exit 0 + JSON {"decision":"allow"} → Claude can stop
 #   exit 2 + JSON {"decision":"block","reason":"..."} → Claude must continue
+#
+# Safety: checks stop_hook_active to prevent infinite loops.
+# On the second pass (Claude was already blocked once and tried to stop again),
+# we allow exit to avoid getting stuck.
+
+# Read stdin for event data (contains stop_hook_active field)
+INPUT=$(cat)
+
+# CRITICAL: Infinite loop guard
+# If stop_hook_active is true, Claude was already blocked once in this turn.
+# Allow exit to prevent infinite block loops.
+STOP_HOOK_ACTIVE=$(echo "$INPUT" | python3 -c "
+import json, sys
+try:
+    data = json.load(sys.stdin)
+    print(str(data.get('stop_hook_active', False)).lower())
+except:
+    print('false')
+" 2>/dev/null)
+
+if [ "$STOP_HOOK_ACTIVE" = "true" ]; then
+  echo '{"decision":"allow"}'
+  exit 0
+fi
 
 # Find the active feature_tests.json
 FEATURE_TESTS=$(find . -path '*/changes/*/feature_tests.json' -newer .git/HEAD 2>/dev/null | head -1)

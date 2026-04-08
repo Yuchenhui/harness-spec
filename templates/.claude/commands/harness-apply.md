@@ -2,7 +2,7 @@
 
 请严格按以下流程执行：
 
-## Phase 1: 初始化
+## Phase 0: Spec Review（质量把关）
 
 1. 查找 change 目录。按优先级搜索：
    - `changes/$ARGUMENTS/tasks.md`
@@ -10,10 +10,47 @@
    - 如果都找不到，问用户 tasks.md 在哪里
 
 2. 检查是否已有 `feature_tests.json`（同目录下）：
-   - 如果有且部分 passes=true → 进入恢复模式（跳到 Phase 2，从第一个 passes=false 的任务开始）
-   - 如果没有 → 继续初始化
+   - 如果有且部分 passes=true → 跳过 Phase 0 和 Phase 1，进入恢复模式（Phase 2）
+   - 如果没有 → 继续
 
-3. **启动 Initializer subagent 生成验证材料。**
+3. **启动 Spec Reviewer subagent 审查和补强 specs。**
+
+   用 Task 工具启动 spec-reviewer agent，prompt 如下：
+
+   ---
+   请审查以下 change 的 specs 质量：
+
+   Change: $ARGUMENTS
+   Specs 文件: {specs.md 的路径}
+   Tasks 文件: {tasks.md 的路径}
+   Proposal 文件: {proposal.md 的路径}
+   项目根目录: {pwd}
+
+   请：
+   1. 逐条审查 specs.md 中的 scenario（具体性、可验证性、完整性、可测试类型、独立性）
+   2. 给出质量评分 (1-10)
+   3. 自动补强：为模糊 scenario 补充细节，为只有 happy path 的 feature 添加 error/edge cases
+   4. 输出审查报告和修改摘要
+   ---
+
+4. Reviewer 完成后，展示审查结果给用户：
+
+   ```
+   📝 Spec Review 完成
+   质量评分: {原始分} → {补强后分}
+   修改了 {n} 条 scenario，新增了 {m} 条
+
+   修改摘要:
+   {列出主要修改}
+
+   确认继续？还是需要调整？
+   ```
+
+   等用户确认后，继续 Phase 1。如果用户要修改，重新运行 Reviewer。
+
+## Phase 1: 初始化（生成验证材料）
+
+1. **启动 Initializer subagent 生成验证材料。**
 
    用 Task 工具启动 verification-initializer agent，prompt 如下：
 

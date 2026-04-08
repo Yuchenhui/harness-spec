@@ -306,7 +306,8 @@ Session 中断后恢复：
 
 | 组件 | 文件路径 | 职责 |
 |------|---------|------|
-| **Initializer Agent** | `.claude/agents/initializer.md` | **在编码之前从 specs 生成验证材料（测试骨架、API 契约、浏览器场景）** |
+| **Spec Reviewer** | `.claude/agents/spec-reviewer.md` | **审查补强 specs — 在生成测试之前把关质量** |
+| **Initializer Agent** | `.claude/agents/initializer.md` | **从审查后的 specs 生成验证材料（测试骨架、API 契约、浏览器场景）** |
 | Evaluator Agent | `.claude/agents/evaluator.md` | 在独立上下文中验证实现 |
 | Fixer Agent | `.claude/agents/fixer.md` | 根据评估报告做最小修复 |
 | Harness Apply | `.claude/commands/harness-apply.md` | 编排完整的 init → code → evaluate → fix 循环 |

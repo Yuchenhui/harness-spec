@@ -308,7 +308,8 @@ Then run:
 
 | Component | File | Role |
 |-----------|------|------|
-| **Initializer Agent** | `.claude/agents/initializer.md` | **Generates verification material from specs BEFORE coding** |
+| **Spec Reviewer** | `.claude/agents/spec-reviewer.md` | **Reviews and strengthens specs BEFORE test generation** |
+| **Initializer Agent** | `.claude/agents/initializer.md` | **Generates verification material from reviewed specs** |
 | Evaluator Agent | `.claude/agents/evaluator.md` | Verifies implementation in independent context |
 | Fixer Agent | `.claude/agents/fixer.md` | Minimal code fixes based on evaluation reports |
 | Harness Apply | `.claude/commands/harness-apply.md` | Orchestrates the full init → code → evaluate → fix loop |

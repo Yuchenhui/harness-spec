@@ -1,0 +1,64 @@
+{
+  "name": "harness-spec",
+  "version": "0.1.0",
+  "description": "Harness Engineering for AI-assisted development — verified, recoverable, self-healing spec-driven workflows. Built on OpenSpec core.",
+  "keywords": [
+    "harness",
+    "specs",
+    "cli",
+    "ai",
+    "development",
+    "tdd",
+    "evaluation",
+    "claude-code"
+  ],
+  "homepage": "https://github.com/yuchenhui/harness-spec",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yuchenhui/harness-spec"
+  },
+  "license": "MIT",
+  "author": "yuchenhui",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "bin": {
+    "harness": "./bin/harness.js"
+  },
+  "files": [
+    "dist",
+    "bin",
+    "schemas",
+    "!dist/**/*.test.js",
+    "!dist/**/__tests__",
+    "!dist/**/*.map"
+  ],
+  "scripts": {
+    "build": "node build.js",
+    "dev": "tsc --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "prepare": "npm run build"
+  },
+  "engines": {
+    "node": ">=20.19.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.2.0",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
+  },
+  "dependencies": {
+    "@inquirer/prompts": "^7.8.0",
+    "chalk": "^5.5.0",
+    "commander": "^14.0.0",
+    "fast-glob": "^3.3.3",
+    "ora": "^8.2.0",
+    "yaml": "^2.8.2",
+    "zod": "^4.0.17"
+  }
+}

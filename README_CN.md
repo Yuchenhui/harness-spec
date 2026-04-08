@@ -1,8 +1,11 @@
-# Harness Engineering for OpenSpec
+# Harness Spec
 
 [English](README.md)
 
-> 将 AI Agent 的"做什么"（OpenSpec）和"怎么可靠地做"（Harness Engineering）分层组合，构建可验证、可恢复、可自愈的 AI 辅助开发流程。
+> 可验证、可恢复、可自愈的 AI 辅助开发。基于 [OpenSpec](https://github.com/Fission-AI/OpenSpec) 核心构建。
+
+[![Built on OpenSpec](https://img.shields.io/badge/built%20on-OpenSpec%20v1.2.0-blue)](https://github.com/Fission-AI/OpenSpec)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 ## 什么是 Harness Engineering
 
@@ -386,14 +389,34 @@ harness-spec/
 | [docs/verification-strategies.md](docs/verification-strategies.md) | 分层验证策略（L1-L5）与 Playwright |
 | [examples/openspec-integration.md](examples/openspec-integration.md) | 端到端集成示例 |
 
+## 与 OpenSpec 的关系
+
+本项目基于 [OpenSpec](https://github.com/Fission-AI/OpenSpec)（v1.2.0，MIT 许可证，[Fission AI](https://github.com/Fission-AI) 开发）的核心模块构建：
+
+| 来自 OpenSpec（保留） | 来自 Harness（新增） |
+|---------------------|---------------------|
+| Artifact Graph（DAG 依赖系统） | Spec Reviewer（Phase 0） |
+| Delta Spec 合并系统 | Verification Initializer（Phase 1） |
+| Schema 3 层解析 | Harness Apply 循环（Phase 2） |
+| 归档 & 验证 | Evaluator + Fixer agents |
+| Instruction Loader | Hooks（stop, session, post-commit） |
+| Claude Code 适配器 | 分层验证（L1-L5） |
+
+我们提取了 OpenSpec 约 3,700 行核心基础设施代码（占原始代码库的 ~17%），在其上构建了 harness engineering 层。详见 [UPSTREAM.md](UPSTREAM.md) 了解版本跟踪和同步方法。
+
+**OpenSpec 专注于"做什么"（spec 驱动的工作流）。Harness Spec 添加了"怎么可靠地做"（可验证、可恢复、可自愈的执行）。**
+
 ## 参考来源
 
+- **[OpenSpec](https://github.com/Fission-AI/OpenSpec)** — 本项目基于的 spec 驱动开发系统
 - [Anthropic: How we built our multi-agent research system](https://www.anthropic.com/engineering/built-multi-agent-research-system) — harness design 与评估分离
 - [Anthropic: Claude Code best practices](https://www.anthropic.com/engineering/claude-code-best-practices) — CLAUDE.md 治理与 headless mode
 - [OpenAI: A practical guide to building agents](https://cdn.openai.com/business-guides-and-resources/a-practical-guide-to-building-agents.pdf) — agent 构建模块化
+- [ralph-wiggum](https://github.com/anthropics/claude-code/tree/main/plugins/ralph-wiggum) — Anthropic 官方的 Stop hook 模式
 - [Boris Cherny: Claude Code settings.json](https://blog.borischerny.com/p/claude-code-settings-json) — 确定性行为约束
-- [HumanLayer: Claude Code best practices](https://humanlayer.dev/blog/claude-code-best-practices) — CLAUDE.md 精简原则
 
 ## License
 
-MIT
+MIT — 见 [LICENSE](LICENSE)
+
+包含来自 [OpenSpec](https://github.com/Fission-AI/OpenSpec) 的代码（MIT License, Copyright 2024 OpenSpec Contributors）。

@@ -1,8 +1,11 @@
-# Harness Engineering for OpenSpec
+# Harness Spec
 
 [中文版](README_CN.md)
 
-> Layer **"what to build"** (OpenSpec) with **"how to build reliably"** (Harness Engineering) — verified, recoverable, self-healing AI-assisted development.
+> Verified, recoverable, self-healing AI-assisted development. Built on [OpenSpec](https://github.com/Fission-AI/OpenSpec) core.
+
+[![Built on OpenSpec](https://img.shields.io/badge/built%20on-OpenSpec%20v1.2.0-blue)](https://github.com/Fission-AI/OpenSpec)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 ## What is Harness Engineering?
 
@@ -388,14 +391,34 @@ harness-spec/
 | [docs/verification-strategies.md](docs/verification-strategies.md) | Multi-level verification (L1-L5) with Playwright |
 | [examples/openspec-integration.md](examples/openspec-integration.md) | End-to-end integration example |
 
+## Relationship with OpenSpec
+
+This project incorporates core modules from [OpenSpec](https://github.com/Fission-AI/OpenSpec) (v1.2.0, MIT License) by [Fission AI](https://github.com/Fission-AI):
+
+| From OpenSpec (kept) | From Harness (added) |
+|---------------------|---------------------|
+| Artifact Graph (DAG dependencies) | Spec Reviewer (Phase 0) |
+| Delta Spec merge system | Verification Initializer (Phase 1) |
+| Schema resolution (3-tier) | Harness Apply loop (Phase 2) |
+| Archive & validation | Evaluator + Fixer agents |
+| Instruction loader | Hooks (stop, session, post-commit) |
+| Claude Code adapter | Multi-level verification (L1-L5) |
+
+We extracted ~3,700 lines of OpenSpec's core infrastructure (~17% of the codebase) and built the harness engineering layer on top. See [UPSTREAM.md](UPSTREAM.md) for version tracking and sync instructions.
+
+**OpenSpec focuses on "what to build" (spec-driven workflow). Harness Spec adds "how to build reliably" (verified, recoverable, self-healing execution).**
+
 ## References
 
+- **[OpenSpec](https://github.com/Fission-AI/OpenSpec)** — the spec-driven development system this project builds upon
 - [Anthropic: How we built our multi-agent research system](https://www.anthropic.com/engineering/built-multi-agent-research-system) — harness design & evaluation separation
 - [Anthropic: Claude Code best practices](https://www.anthropic.com/engineering/claude-code-best-practices) — CLAUDE.md governance & headless mode
 - [OpenAI: A practical guide to building agents](https://cdn.openai.com/business-guides-and-resources/a-practical-guide-to-building-agents.pdf) — modular agent building blocks
+- [ralph-wiggum](https://github.com/anthropics/claude-code/tree/main/plugins/ralph-wiggum) — Anthropic's official Stop hook pattern
 - [Boris Cherny: Claude Code settings.json](https://blog.borischerny.com/p/claude-code-settings-json) — deterministic behavior constraints
-- [HumanLayer: Claude Code best practices](https://humanlayer.dev/blog/claude-code-best-practices) — lean CLAUDE.md principles
 
 ## License
 
-MIT
+MIT — see [LICENSE](LICENSE)
+
+Includes code from [OpenSpec](https://github.com/Fission-AI/OpenSpec) (MIT License, Copyright 2024 OpenSpec Contributors).

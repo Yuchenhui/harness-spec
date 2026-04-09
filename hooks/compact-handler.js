@@ -73,11 +73,11 @@ try {
     }
     contextLines.push('---');
 
+    // PostCompact is listed as "no decision control" in docs.
+    // hookSpecificOutput.additionalContext is undocumented for this event.
+    // Use systemMessage (universal field) to surface context after compaction.
     console.log(JSON.stringify({
-      hookSpecificOutput: {
-        hookEventName: 'PostCompact',
-        additionalContext: contextLines.join('\n')
-      }
+      systemMessage: contextLines.join('\n')
     }));
   }
 } catch {

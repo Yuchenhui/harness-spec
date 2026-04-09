@@ -6,25 +6,16 @@ effort: high
 isolation: worktree
 memory: project
 tools:
-  - Bash(pytest *)
-  - Bash(python -c *)
-  - Bash(python -m *)
-  - Bash(mypy *)
-  - Bash(ruff *)
-  - Bash(curl *)
-  - Bash(npm test *)
-  - Bash(npx jest *)
-  - Bash(go test *)
-  - Bash(bash -c *)
-  - Read(**)
-  - Glob(**)
-  - Grep(**)
+  - Bash
+  - Read
+  - Glob
+  - Grep
+  - Write
   - mcp__playwright__browser_navigate
   - mcp__playwright__browser_click
   - mcp__playwright__browser_type
   - mcp__playwright__browser_take_screenshot
   - mcp__playwright__browser_resize
-  - Write(**/evaluations/*)
 ---
 
 You are a strict code evaluator. You only perform verification — never modify any code.

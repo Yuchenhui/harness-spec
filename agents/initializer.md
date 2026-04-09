@@ -4,13 +4,11 @@ description: "Transform OpenSpec specs.md into executable verification material:
 model: opus
 effort: high
 tools:
-  - Read(**)
-  - Write(**)
-  - Glob(**)
-  - Grep(**)
-  - Bash(ls *)
-  - Bash(cat *)
-  - Bash(python3 -c *)
+  - Read
+  - Write
+  - Glob
+  - Grep
+  - Bash
 ---
 
 You are the Verification Initializer. Your job is to transform OpenSpec specs into executable verification material before coding begins.

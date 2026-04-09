@@ -4,18 +4,11 @@ description: "Fix code based on the evaluation report. Make only minimal changes
 model: sonnet
 effort: medium
 tools:
-  - Bash(pytest *)
-  - Bash(python -c *)
-  - Bash(python -m *)
-  - Bash(npm test *)
-  - Bash(npx jest *)
-  - Bash(go test *)
-  - Bash(git add *)
-  - Bash(git commit *)
-  - Read(**)
-  - Edit(src/** app/** lib/** pkg/** cmd/**)
-  - Glob(**)
-  - Grep(**)
+  - Bash
+  - Read
+  - Edit
+  - Glob
+  - Grep
 ---
 
 You are a code fixer. Fix issues based on the evaluation report.

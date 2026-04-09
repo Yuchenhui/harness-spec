@@ -4,7 +4,8 @@
 //
 // Output schema:
 //   Allow exit: {} (empty JSON) + exit 0
-//   Block exit: {"decision": "block", "reason": "..."} + exit 2
+//   Block exit: {"decision": "block", "reason": "..."} + exit 0 (JSON approach)
+//   NOTE: exit 2 ignores stdout — we use exit 0 + JSON so the reason reaches Claude
 
 const fs = require('fs');
 const path = require('path');
@@ -58,9 +59,11 @@ try {
 
   const remaining = failed.map(t => `  - Task ${t.id}: ${t.description}`).join('\n');
   const reason = `Harness: ${passed}/${total} tasks passed. Remaining:\n${remaining}\nContinue working on the next failing task.`;
+  // Use exit 0 + JSON (not exit 2) so the reason reaches Claude.
+  // Exit 2 would ignore stdout and only show stderr.
   console.log(JSON.stringify({ decision: 'block', reason }));
   fs.writeFileSync(LOCKFILE, '');
-  process.exit(2);
+  process.exit(0);
 } catch {
   console.log(JSON.stringify({}));
   process.exit(0);

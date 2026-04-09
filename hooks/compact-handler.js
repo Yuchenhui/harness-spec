@@ -1,41 +1,38 @@
 #!/usr/bin/env node
 // Harness Compact Handler — saves/restores progress during context compaction
-// Cross-platform (Node.js). No bash dependency.
+// ONLY active when harness-apply is running (.claude/harness-active exists)
 //
-// PreCompact: saves progress to claude-progress.txt (file write, no JSON output needed)
-// PostCompact: re-injects essential state via hookSpecificOutput.additionalContext
+// PreCompact: saves progress to claude-progress.txt (file write, no JSON output)
+// PostCompact: writes systemMessage (docs say "no decision control" for this event,
+//   so hookSpecificOutput may be ignored. systemMessage is a universal field but
+//   may also be ignored. The real fallback is claude-progress.txt from PreCompact.)
 
 const fs = require('fs');
 const path = require('path');
 
 const event = process.argv[2] || 'precompact';
 
-function findFeatureTests(dir) {
-  for (const base of ['changes', path.join('openspec', 'changes')]) {
-    const changesDir = path.join(dir, base);
-    if (!fs.existsSync(changesDir)) continue;
-    try {
-      for (const entry of fs.readdirSync(changesDir)) {
-        if (entry === 'archive') continue;
-        const ftPath = path.join(changesDir, entry, 'feature_tests.json');
-        if (fs.existsSync(ftPath)) return ftPath;
-      }
-    } catch {}
-  }
-  return null;
+// Check state file — same pattern as all other hooks
+const stateFile = path.join(process.cwd(), '.claude', 'harness-active');
+if (!fs.existsSync(stateFile)) process.exit(0);
+
+let featureTestsPath;
+try {
+  featureTestsPath = fs.readFileSync(stateFile, 'utf8').trim();
+} catch {
+  process.exit(0);
 }
 
-const featureTests = findFeatureTests(process.cwd());
-if (!featureTests) process.exit(0);
+if (!featureTestsPath || !fs.existsSync(featureTestsPath)) process.exit(0);
 
 try {
-  const data = JSON.parse(fs.readFileSync(featureTests, 'utf8'));
+  const data = JSON.parse(fs.readFileSync(featureTestsPath, 'utf8'));
   const tasks = data.tasks || [];
   const passed = tasks.filter(t => t.passes);
   const failed = tasks.filter(t => !t.passes);
 
   if (event === 'precompact') {
-    // Save progress to file before compaction
+    // Save progress to file before compaction — this is the reliable fallback
     const lines = [
       `# Progress: ${data.change_id || 'unknown'}`,
       `## Last Updated: ${new Date().toISOString()}`,
@@ -53,12 +50,15 @@ try {
     if (failed.length > 0) {
       lines.push('', '### Next Task', `Task ${failed[0].id}: ${failed[0].description}`);
     }
-    const progressPath = featureTests.replace('feature_tests.json', 'claude-progress.txt');
+    const progressPath = featureTestsPath.replace('feature_tests.json', 'claude-progress.txt');
     fs.writeFileSync(progressPath, lines.join('\n') + '\n');
+    // No JSON output needed — PreCompact is for side effects only
   }
 
   if (event === 'postcompact') {
-    // Re-inject context after compaction via hookSpecificOutput
+    // Best effort: systemMessage is a universal field, but docs say PostCompact
+    // has "no decision control" so this may be silently ignored.
+    // The real fallback is claude-progress.txt written by PreCompact above.
     const contextLines = [
       `--- Harness Context (restored after compaction) ---`,
       `Change: ${data.change_id || 'unknown'}`,
@@ -66,16 +66,9 @@ try {
     ];
     if (failed.length > 0) {
       contextLines.push(`Next: Task ${failed[0].id} - ${failed[0].description}`);
-      contextLines.push(`Level: ${failed[0].verification_level || 'L2'}`);
-      if (failed[0].evaluation_attempts > 0) {
-        contextLines.push(`Previous attempts: ${failed[0].evaluation_attempts}`);
-      }
     }
     contextLines.push('---');
 
-    // PostCompact is listed as "no decision control" in docs.
-    // hookSpecificOutput.additionalContext is undocumented for this event.
-    // Use systemMessage (universal field) to surface context after compaction.
     console.log(JSON.stringify({
       systemMessage: contextLines.join('\n')
     }));

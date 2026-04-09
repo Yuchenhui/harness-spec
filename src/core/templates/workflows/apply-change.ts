@@ -1,261 +1,103 @@
 /**
  * Harness Apply Workflow
  *
- * Enhanced version of OpenSpec's apply workflow.
- * Adds: Spec Review (Phase 0), Test Initialization (Phase 1),
- * independent evaluation, auto-fix loop, and cross-session recovery.
+ * Orchestrator pattern: coordinates phases, delegates details to agents.
+ * Each agent (spec-reviewer, initializer, evaluator, fixer) has its own
+ * instruction file. This workflow only manages flow control and transitions.
  */
 import type { SkillTemplate, CommandTemplate } from '../types.js';
 
 const HARNESS_APPLY_INSTRUCTIONS = `Implement tasks from a change with harness engineering verification.
 
-**Input**: Optionally specify a change name. If omitted, auto-detect.
+**Input**: Change name (optional — auto-detects if only one active change).
 
-**Steps**
+## 1. Select Change and Detect Mode
 
-1. **Select the change**
+Run \`openspec status --json\` to find active changes. If ambiguous, use AskUserQuestion.
 
-   If a name is provided, use it. Otherwise:
-   - Auto-select if only one active change exists
-   - If ambiguous, run \`openspec list --json\` and use **AskUserQuestion** to let the user select
-
-   Always announce: "Using change: <name>"
-
-2. **Check status**
-   \`\`\`bash
-   openspec status --change "<name>" --json
-   \`\`\`
-   Parse the JSON to understand current state and which artifacts exist.
-
-3. **Check for existing feature_tests.json (resume mode)**
-
-   Look for \`feature_tests.json\` in the change directory.
-   - If exists with some \`passes: true\` → **Resume mode**: skip to Phase 2, continue from first \`passes: false\` task
-   - If exists with all \`passes: false\` → **Continue mode**: skip to Phase 2
-   - If not exists → **Full mode**: run Phase 0, Phase 1, then Phase 2
+Check for \`feature_tests.json\` in the change directory:
+- **Exists with some passes:true** → Resume mode: skip to Phase 2, first \`passes:false\` task
+- **Exists with all passes:false** → Continue mode: skip to Phase 2
+- **Does not exist** → Full mode: Phase 0 → Phase 1 → Phase 2
 
 ---
 
-## Phase 0: Spec Review (interactive quality gate)
+## Phase 0: Spec Review
 
-**Skip if**: feature_tests.json already exists (resuming).
+**Skip if**: feature_tests.json already exists.
 
-4. **Run spec review**
+Launch the **spec-reviewer** agent as a subagent (Task tool). Pass it:
+- The change directory path
+- proposal.md, design.md (if exists), specs/, tasks.md paths
 
-   Read all change files (proposal.md, design.md, specs/, tasks.md).
+The reviewer outputs a JSON report. Parse it and use AskUserQuestion to present findings:
+1. Design gaps → multiSelect which to add as specs
+2. Vague scenarios → accept strengthening or skip
+3. Missing error/edge cases → multiSelect which to add
+4. Unverifiable scenarios → downgrade to L5 / rewrite / delete
+5. Task alignment issues → accept fixes or skip
 
-   Review each spec scenario for:
-   - Specificity (concrete values?)
-   - Verifiability (can be tested automatically?)
-   - Completeness (error/edge cases?)
-   - Design coverage (design decisions reflected in specs?)
-   - Task alignment (specs ↔ tasks match?)
-
-5. **Present findings via AskUserQuestion**
-
-   Priority order:
-
-   **a. Design gaps** (design decisions without spec coverage):
-   \`\`\`
-   AskUserQuestion (multiSelect: true):
-   "design.md 中的以下决策在 specs 中没有对应的测试场景。要补充吗？"
-   \`\`\`
-
-   **b. Vague scenarios** (need strengthening):
-   \`\`\`
-   AskUserQuestion (multiSelect: true):
-   "以下 scenario 建议补强："
-   Options: "接受: '{original}' → '{suggested}'"
-   \`\`\`
-
-   **c. Missing error/edge cases**:
-   \`\`\`
-   AskUserQuestion (multiSelect: true):
-   "建议新增以下场景："
-   \`\`\`
-
-   **d. Unverifiable scenarios**:
-   \`\`\`
-   AskUserQuestion:
-   "'{scenario}' 无法自动验证，怎么处理？"
-   Options: "降级为 L5", "改写", "删除"
-   \`\`\`
-
-6. **Apply approved changes to spec files**
-
-   Strengthen in-place (Edit tool). Append new scenarios with [harness-reviewed] tag.
-   Git commit: "specs: strengthen scenarios for <name> [harness-reviewed]"
+Apply accepted changes to specs files (Edit tool). Tag additions with [harness-reviewed].
+If new scenarios added, ask if tasks.md needs regeneration.
+Git commit: "specs: strengthen scenarios [harness-reviewed]"
 
 ---
 
-## Phase 1: Test Initialization (generate verification material)
+## Phase 1: Test Initialization
 
-**Skip if**: feature_tests.json already exists (resuming).
+**Skip if**: feature_tests.json already exists.
 
-7. **Detect project tech stack**
+Launch the **initializer** agent as a subagent. Pass it:
+- The change directory path with reviewed specs and tasks
+- The project root for tech stack detection
 
-   Check for package.json, requirements.txt, go.mod, etc.
-   Determine test framework (pytest, jest, go test, etc.)
-
-8. **Assign verification_level per task**
-   - Model/utility → L2 (Unit)
-   - API endpoint → L3 (Integration)
-   - UI page → L4 (E2E/Browser)
-   - Pure styling → L5 (Visual)
-
-9. **Generate test skeleton files**
-
-   For L2/L3 tasks: create test files with real assertions from spec scenarios.
-   Follow existing test conventions in the project.
-   Each spec scenario → at least one test function with assert statements.
-   Add edge case tests (empty input, duplicates, etc.)
-
-10. **Generate feature_tests.json**
-
-    \`\`\`json
-    {
-      "change_id": "<name>",
-      "evaluation_config": {"max_retries": 3, "tdd_mode": true},
-      "tasks": [{
-        "id": "1.1", "description": "...",
-        "spec_scenarios": ["..."],
-        "verification_level": "L2",
-        "pre_generated_tests": true,
-        "verification_commands": ["pytest tests/test_xxx.py -v"],
-        "passes": false, "evaluation_attempts": 0
-      }]
-    }
-    \`\`\`
-
-11. **Generate claude-progress.txt**
-
-12. **Verify all tests FAIL** (TDD red phase)
-
-    Run the generated tests. They should ALL fail because no implementation exists yet.
-    If any pass → the test has no real assertion, fix it.
-
-13. **Git commit** initialization files.
+The initializer generates: feature_tests.json, test skeleton files, API contracts, browser scenarios.
+Verify all generated tests currently FAIL (red phase). Git commit initialization files.
 
 ---
 
 ## Phase 2: Code → Evaluate → Fix Loop
 
-14. **For each task with passes: false, execute sequentially:**
+For each task in feature_tests.json with \`passes: false\`, sequentially:
 
-    **a. Show task info:**
-    \`\`\`
-    --- Task {id}: {description} [Level: {verification_level}] ---
-    Scenarios: {list}
-    Pre-generated tests: {list test functions}
-    \`\`\`
+**a. Code**: Show the task info (id, description, verification_level, pre-generated tests).
+Write implementation code. Do NOT modify test files if pre_generated_tests is true.
+Git commit: "feat(<change>): task <id> - <description>"
 
-    **b. Implement the task**
+**b. Evaluate**: Launch the **evaluator** agent as a subagent. Pass it:
+- Task id, description, verification_level
+- spec_scenarios and verification_commands
+- setup_commands and teardown_commands (if any)
+- browser_verification (if L4)
+The evaluator returns STATUS: PASS, FAIL, or NEEDS_HUMAN_REVIEW.
 
-    Write implementation code. If pre_generated_tests is true, do NOT modify test files.
-    For L4 tasks, ensure UI elements have data-testid attributes.
-
-    **Available agents during coding** (user can @mention if needed):
-    - @python-expert, @backend-architect, @frontend-architect (language/domain help)
-    - @idempotent-db-script-generator (database migration tasks)
-    - @security-engineer (auth/permission tasks)
-
-    Git commit using /git-commit (smart grouping + conventional format),
-    or manually: "feat(<name>): task {id} - {description}"
-
-    **c. Evaluate independently**
-
-    **CRITICAL: Use the Task tool to launch an evaluator subagent. Do NOT evaluate yourself.**
-
-    The evaluator subagent prompt depends on verification_level:
-
-    For L1/L2/L3:
-    ---
-    You are a code evaluator. Verify the following task:
-    Task: {id} - {description}
-    Level: {verification_level}
-    Run these commands: {verification_commands}
-    If there are setup_commands, run them first.
-    Check each spec scenario has a passing test.
-    Output: STATUS: PASS or FAIL with details.
-    ---
-
-    For L4 (Browser):
-    ---
-    You are a QA engineer doing black-box testing. Do NOT read source code.
-    Task: {id} - {description}
-    Start the app: {setup_commands}
-    Use Playwright browser tools to test: {browser_verification.scenarios}
-    Take screenshots at key steps.
-    Output: STATUS: PASS or FAIL
-    ---
-
-    For L5 (Visual):
-    ---
-    Start the app: {setup_commands}
-    Take screenshots: {browser_verification.screenshots}
-    Save to evaluations/screenshots/
-    Output: STATUS: NEEDS_HUMAN_REVIEW
-    ---
-
-    **d. Handle result**
-
-    **PASS**: Update feature_tests.json (passes: true), update claude-progress.txt, git commit. Next task.
-
-    **FAIL (attempts < 3)**: Launch fixer subagent (Task tool):
-    ---
-    Fix the code based on this evaluation report: {report}
-    Rules: only fix what failed, don't modify test files, git commit.
-    ---
-    After fix, re-evaluate (go to step c).
-
-    **FAIL (attempts >= 3)**: Pause. Show evaluation report. Ask user:
-    \`\`\`
-    AskUserQuestion:
-    "Task {id} 经过 3 次修复仍未通过。"
-    Options: "我来手动修复", "跳过继续下一个", "查看完整报告"
-    \`\`\`
-
-    **NEEDS_HUMAN_REVIEW (L5)**: Show screenshot paths. Ask user to confirm.
+**c. Handle result**:
+- PASS → update feature_tests.json (passes:true), update claude-progress.txt, git commit, next task
+- FAIL (attempts < 3) → launch **fixer** agent with the evaluation report, then re-evaluate
+- FAIL (attempts >= 3) → pause, show report, AskUserQuestion: manual fix / skip / view report
+- NEEDS_HUMAN_REVIEW (L5) → show screenshot paths, wait for user confirmation
 
 ---
 
 ## Phase 3: Completion
 
-15. **When all tasks pass**, show summary:
+All tasks passed. Show summary:
+- Each task: level, pass/fail, attempt count
+- Total pre-generated tests, auto-fixes, evaluation reports
+- Next steps: /opsx:verify → /opsx:archive
 
-    \`\`\`
-    ## Implementation Complete (Harness Verified)
+---
 
-    **Change:** <name>
-    **Progress:** {n}/{n} tasks complete ✓
-
-    ### Results
-    - Task 1.1 [L2] PASS (1st attempt)
-    - Task 1.2 [L3] PASS (2nd attempt, 1 auto-fix)
-    - Task 2.1 [L4] PASS (1st attempt, browser verified)
-    ...
-
-    ### Stats
-    - Pre-generated tests: {n}
-    - Auto-fixes: {n}
-    - Evaluation reports: changes/<name>/evaluations/
-
-    ### Next Steps
-    - /opsx:verify — final verification
-    - /opsx:archive — archive the change
-    \`\`\`
-
-**Guardrails**
-- Execute tasks ONE AT A TIME, never batch
+## Guardrails
+- Execute tasks ONE AT A TIME
 - Always use Task tool for evaluation (independent context)
-- Never modify pre-generated test files during coding
-- Update progress files after each task completion
-- The Stop hook will prevent exiting if tasks remain incomplete`;
+- Never modify pre-generated test files
+- The Stop hook prevents exiting if tasks remain incomplete`;
 
 export function getApplyChangeSkillTemplate(): SkillTemplate {
   return {
     name: 'openspec-apply-change',
-    description: 'Implement tasks from a change with harness engineering verification — spec review, test generation, independent evaluation, and auto-fix loop.',
+    description: 'Implement tasks with harness engineering: spec review, test generation, independent evaluation, and auto-fix loop.',
     instructions: HARNESS_APPLY_INSTRUCTIONS,
     license: 'MIT',
     compatibility: 'Requires openspec CLI and Claude Code.',

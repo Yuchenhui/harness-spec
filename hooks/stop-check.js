@@ -11,7 +11,7 @@ const LOCKFILE = path.join(require('os').tmpdir(), 'harness-stop-hook-blocked');
 if (fs.existsSync(LOCKFILE)) {
   const age = (Date.now() - fs.statSync(LOCKFILE).mtimeMs) / 1000;
   if (age < 30) {
-    console.log(JSON.stringify({ decision: 'allow' }));
+    console.log(JSON.stringify({ decision: 'approve' }));
     fs.unlinkSync(LOCKFILE);
     process.exit(0);
   }
@@ -42,7 +42,7 @@ function searchChanges(changesDir) {
 const featureTests = findFeatureTests(process.cwd());
 
 if (!featureTests) {
-  console.log(JSON.stringify({ decision: 'allow' }));
+  console.log(JSON.stringify({ decision: 'approve' }));
   process.exit(0);
 }
 
@@ -54,7 +54,7 @@ try {
   const failed = tasks.filter(t => !t.passes);
 
   if (passed === total) {
-    console.log(JSON.stringify({ decision: 'allow' }));
+    console.log(JSON.stringify({ decision: 'approve' }));
     process.exit(0);
   }
 
@@ -64,6 +64,6 @@ try {
   fs.writeFileSync(LOCKFILE, '');
   process.exit(2);
 } catch {
-  console.log(JSON.stringify({ decision: 'allow' }));
+  console.log(JSON.stringify({ decision: 'approve' }));
   process.exit(0);
 }

@@ -2,6 +2,7 @@
 name: implementation-fixer
 description: "Fix code based on the evaluation report. Make only minimal changes. Must not modify test files."
 model: sonnet
+effort: medium
 tools:
   - Bash(pytest *)
   - Bash(python -c *)

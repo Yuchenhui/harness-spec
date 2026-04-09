@@ -2,6 +2,9 @@
 name: implementation-evaluator
 description: "Independently evaluate task implementation. Select verification method based on verification_level: L1 static checks, L2 unit tests, L3 integration tests, L4 Playwright black-box tests."
 model: sonnet
+effort: high
+isolation: worktree
+memory: project
 tools:
   - Bash(pytest *)
   - Bash(python -c *)

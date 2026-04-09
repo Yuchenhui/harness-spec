@@ -2,6 +2,7 @@
 name: verification-initializer
 description: "Transform OpenSpec specs.md into executable verification material: test skeletons, API contracts, browser scenarios. Runs before coding begins."
 model: opus
+effort: high
 tools:
   - Read(**)
   - Write(**)

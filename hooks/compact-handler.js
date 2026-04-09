@@ -1,6 +1,9 @@
 #!/usr/bin/env node
 // Harness Compact Handler — saves/restores progress during context compaction
 // Cross-platform (Node.js). No bash dependency.
+//
+// PreCompact: saves progress to claude-progress.txt (file write, no JSON output needed)
+// PostCompact: re-injects essential state via hookSpecificOutput.additionalContext
 
 const fs = require('fs');
 const path = require('path');
@@ -13,6 +16,7 @@ function findFeatureTests(dir) {
     if (!fs.existsSync(changesDir)) continue;
     try {
       for (const entry of fs.readdirSync(changesDir)) {
+        if (entry === 'archive') continue;
         const ftPath = path.join(changesDir, entry, 'feature_tests.json');
         if (fs.existsSync(ftPath)) return ftPath;
       }
@@ -31,6 +35,7 @@ try {
   const failed = tasks.filter(t => !t.passes);
 
   if (event === 'precompact') {
+    // Save progress to file before compaction
     const lines = [
       `# Progress: ${data.change_id || 'unknown'}`,
       `## Last Updated: ${new Date().toISOString()}`,
@@ -53,17 +58,27 @@ try {
   }
 
   if (event === 'postcompact') {
-    console.log('--- Harness Context (restored after compaction) ---');
-    console.log(`Change: ${data.change_id || 'unknown'}`);
-    console.log(`Progress: ${passed.length}/${tasks.length}`);
+    // Re-inject context after compaction via hookSpecificOutput
+    const contextLines = [
+      `--- Harness Context (restored after compaction) ---`,
+      `Change: ${data.change_id || 'unknown'}`,
+      `Progress: ${passed.length}/${tasks.length}`,
+    ];
     if (failed.length > 0) {
-      console.log(`Next: Task ${failed[0].id} - ${failed[0].description}`);
-      console.log(`Level: ${failed[0].verification_level || 'L2'}`);
+      contextLines.push(`Next: Task ${failed[0].id} - ${failed[0].description}`);
+      contextLines.push(`Level: ${failed[0].verification_level || 'L2'}`);
       if (failed[0].evaluation_attempts > 0) {
-        console.log(`Previous attempts: ${failed[0].evaluation_attempts}`);
+        contextLines.push(`Previous attempts: ${failed[0].evaluation_attempts}`);
       }
     }
-    console.log('---');
+    contextLines.push('---');
+
+    console.log(JSON.stringify({
+      hookSpecificOutput: {
+        hookEventName: 'PostCompact',
+        additionalContext: contextLines.join('\n')
+      }
+    }));
   }
 } catch {
   // Silently fail

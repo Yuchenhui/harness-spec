@@ -1,6 +1,9 @@
 #!/usr/bin/env node
 // Harness SessionStart Hook — injects progress summary into Claude's context
 // Cross-platform (Node.js). No bash dependency.
+//
+// SessionStart output schema:
+//   {"hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": "text"}}
 
 const fs = require('fs');
 const path = require('path');
@@ -48,8 +51,13 @@ try {
   }
   lines.push('---');
 
-  // Plain text output — Claude Code captures stdout from SessionStart hooks
-  console.log(lines.join('\n'));
+  // Use hookSpecificOutput to inject into Claude's context
+  console.log(JSON.stringify({
+    hookSpecificOutput: {
+      hookEventName: 'SessionStart',
+      additionalContext: lines.join('\n')
+    }
+  }));
 } catch {
-  // Silently fail
+  // Silently fail — no output means no context injection
 }

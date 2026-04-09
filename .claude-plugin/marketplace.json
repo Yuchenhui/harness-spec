@@ -1,14 +1,13 @@
 {
   "name": "harness-spec",
-  "description": "Harness Engineering plugins for Claude Code — verified, recoverable, self-healing AI-assisted development.",
   "owner": {
     "name": "yuchenhui"
   },
   "plugins": [
     {
       "name": "harness-spec",
-      "source": ".",
-      "description": "Independent evaluation, auto-fix loops, and cross-session recovery for OpenSpec workflows.",
+      "source": "./",
+      "description": "Harness engineering for Claude Code — independent evaluation, auto-fix loops, cross-session recovery.",
       "version": "0.1.0"
     }
   ]

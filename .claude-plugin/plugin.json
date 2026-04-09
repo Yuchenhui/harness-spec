@@ -1,11 +1,23 @@
 {
   "name": "harness-spec",
-  "description": "Harness Engineering for OpenSpec — verified, recoverable, self-healing AI-assisted development with independent evaluation, auto-fix loops, and cross-session recovery.",
   "version": "0.1.0",
+  "description": "Harness Engineering for OpenSpec — verified, recoverable, self-healing AI-assisted development with independent evaluation, auto-fix loops, and cross-session recovery.",
   "author": {
-    "name": "yuchenhui"
+    "name": "yuchenhui",
+    "url": "https://github.com/yuchenhui"
   },
   "homepage": "https://github.com/yuchenhui/harness-spec",
   "repository": "https://github.com/yuchenhui/harness-spec",
-  "license": "MIT"
+  "license": "MIT",
+  "keywords": [
+    "harness",
+    "openspec",
+    "tdd",
+    "evaluation",
+    "verification",
+    "claude-code",
+    "spec-driven"
+  ],
+  "agents": ["./agents/evaluator.md", "./agents/fixer.md", "./agents/spec-reviewer.md", "./agents/initializer.md"],
+  "commands": ["./commands/harness-apply.md", "./commands/git-commit.md"]
 }

@@ -1,0 +1,51 @@
+{
+  "description": "Harness engineering hooks — stop guard, session recovery, commit reminder",
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/stop-check.sh",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/session-init.sh",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/post-tool-notify.sh",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node -e \"const p = JSON.parse(process.argv[1]).tool_input?.file_path || ''; if (/\\\\/(tests|__tests__)\\\\//.test(p) || /feature_tests\\\\.json$/.test(p)) { process.stderr.write('BLOCKED: Cannot modify test/harness files: ' + p); process.exit(2); }\" \"$CLAUDE_TOOL_INPUT\"",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}

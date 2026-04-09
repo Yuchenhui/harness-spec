@@ -5,7 +5,7 @@
   },
   "plugins": [
     {
-      "name": "harness-spec",
+      "name": "harness",
       "source": "./",
       "description": "Harness engineering for Claude Code — independent evaluation, auto-fix loops, cross-session recovery.",
       "version": "0.1.0"

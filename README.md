@@ -32,7 +32,7 @@ A Claude Code plugin that adds **harness engineering** to your development workf
 ```bash
 # In Claude Code:
 /plugin marketplace add yuchenhui/harness-spec@plugin
-/plugin install harness-spec@harness-spec
+/plugin install harness@harness-spec
 ```
 
 That's it. Hooks auto-load, agents auto-register. Works on **Windows, macOS, and Linux**.
@@ -44,11 +44,8 @@ git clone -b plugin https://github.com/yuchenhui/harness-spec.git /tmp/harness-s
 
 # Copy to your project
 mkdir -p .claude/agents .claude/commands .claude/hooks
-cp /tmp/harness-spec/agents/evaluator.md .claude/agents/
-cp /tmp/harness-spec/agents/fixer.md .claude/agents/
-cp /tmp/harness-spec/agents/spec-reviewer.md .claude/agents/
-cp /tmp/harness-spec/agents/initializer.md .claude/agents/
-cp /tmp/harness-spec/commands/harness-apply.md .claude/commands/
+cp /tmp/harness-spec/agents/*.md .claude/agents/
+cp /tmp/harness-spec/commands/*.md .claude/commands/
 cp /tmp/harness-spec/hooks/*.js .claude/hooks/
 
 # Merge hooks into your settings.json manually (see hooks/hooks.json)
@@ -65,17 +62,25 @@ git clone -b plugin https://github.com/yuchenhui/harness-spec.git ~/harness-spec
 ## What You Get
 
 ```
-4 core agents:
+9 commands (/harness:*):
+  /harness:propose      — Create a change with all artifacts in one step
+  /harness:explore      — Think through ideas without implementing
+  /harness:new          — Create a change directory (step-by-step mode)
+  /harness:continue     — Build the next artifact for a change
+  /harness:review       — Interactive spec quality review (Phase 0)
+  /harness:init-tests   — Generate tests from specs — TDD (Phase 1)
+  /harness:apply        — Code → Evaluate → Fix loop (Phase 2)
+  /harness:verify       — Verify implementation matches specs
+  /harness:archive      — Archive a completed change
+  /harness:commit       — Smart conventional commits with grouping
+
+4 core agents (auto-registered):
   evaluator      — Independent verification (L1-L5), worktree-isolated, persistent memory
   fixer          — Auto-repair from evaluation reports (cannot modify test files)
   spec-reviewer  — Interactive spec quality review, persistent memory
   initializer    — TDD test generation from specs
 
-2 commands:
-  harness-apply  — Full workflow: review → test → code → evaluate → fix
-  git-commit     — Smart conventional commits with grouping
-
-6 hooks (auto-loaded via plugin):
+6 hooks (auto-loaded):
   Stop           — Blocks exit until feature_tests.json all pass
   SessionStart   — Prints progress summary on new session
   PostToolUse    — Reminds to evaluate after git commit
@@ -92,19 +97,28 @@ git clone -b plugin https://github.com/yuchenhui/harness-spec.git ~/harness-spec
 
 ## Usage
 
-### With OpenSpec (recommended)
+### Quick Start (one-step mode)
 
-```bash
-npm install -g @fission-ai/openspec
-openspec init --tools claude
+```
+/harness:propose "add-user-auth"    ← creates proposal + specs + design + tasks
+/harness:review                     ← interactive spec quality check
+/harness:apply add-user-auth        ← code → evaluate → fix loop
+/harness:verify                     ← final verification
+/harness:archive                    ← archive the change
+```
 
-# Then use the harness workflow:
-/opsx:propose "add-user-auth"
-/opsx:specs
-/opsx:tasks
-/harness-spec:harness-apply add-user-auth   # ← harness takes over
-/opsx:verify
-/opsx:archive
+### Step-by-Step Mode (more control)
+
+```
+/harness:explore "user authentication"    ← think through the approach
+/harness:new add-user-auth               ← create change with proposal template
+/harness:continue                        ← generate specs (can @backend-architect here)
+/harness:continue                        ← generate design
+/harness:continue                        ← generate tasks
+/harness:review                          ← interactive spec review
+/harness:apply add-user-auth             ← code → evaluate → fix loop
+/harness:verify
+/harness:archive
 ```
 
 ### Standalone (without OpenSpec)
@@ -126,12 +140,12 @@ Create `feature_tests.json` manually:
 }
 ```
 
-Then: `/harness-spec:harness-apply my-feature`
+Then: `/harness:apply my-feature`
 
 ## How It Works
 
 ```
-/harness-spec:harness-apply
+/harness:apply
 │
 ├── Phase 0: Spec Review
 │   Spec Reviewer agent → JSON report → AskUserQuestion choices

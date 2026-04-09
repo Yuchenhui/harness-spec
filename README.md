@@ -240,22 +240,32 @@ After manual installation, the command is available as:
 
 ### What Gets Installed
 
+Via `openspec init --tools claude` (recommended):
+
 ```
 .claude/
-├── agents/
-│   ├── spec-reviewer.md    ← Spec quality review (Phase 0)
-│   ├── initializer.md      ← Test generation from specs (Phase 1)
-│   ├── evaluator.md        ← Independent verification (Phase 2)
-│   └── fixer.md            ← Auto-repair (Phase 2)
-├── commands/
-│   └── harness-apply.md    ← /harness-apply command
-├── hooks/
-│   ├── stop-check.sh       ← Blocks exit until all tasks pass
-│   ├── session-init.sh     ← Auto-loads progress at session start
-│   └── post-tool-notify.sh ← Reminds to evaluate after git commit
-└── skills/
-    └── progress-tracker/
-        └── SKILL.md        ← Cross-session state recovery
+├── agents/                        ← 4 core harness agents
+│   ├── spec-reviewer.md           Spec quality review (Phase 0)
+│   ├── initializer.md             Test generation from specs (Phase 1)
+│   ├── evaluator.md               Independent verification (Phase 2)
+│   └── fixer.md                   Auto-repair (Phase 2)
+├── commands/opsx/                 ← 9 slash commands
+│   ├── review.md                  /opsx:review
+│   ├── init-tests.md              /opsx:init-tests
+│   ├── apply.md                   /opsx:apply (harness-enhanced)
+│   ├── verify.md                  /opsx:verify (L1-L5)
+│   ├── propose.md, explore.md, new.md, continue.md, archive.md
+│   └── ...
+├── hooks/                         ← 3 enforcement hooks
+│   ├── stop-check.sh              Blocks exit until all tasks pass
+│   ├── session-init.sh            Auto-loads progress at session start
+│   └── post-tool-notify.sh        Reminds to evaluate after commit
+├── skills/                        ← 9 skill definitions
+│   ├── openspec-review/SKILL.md
+│   ├── openspec-init-tests/SKILL.md
+│   └── ...
+├── settings.json                  ← Hooks auto-merged (PreToolUse + Stop + Session + PostTool)
+└── openspec/config.yaml           ← Schema: harness-driven (default)
 ```
 
 ## Usage

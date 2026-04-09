@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Harness SessionStart Hook — prints progress summary on new session
+// Harness SessionStart Hook — injects progress summary into Claude's context
 // Cross-platform (Node.js). No bash dependency.
 
 const fs = require('fs');
@@ -11,6 +11,7 @@ function findFeatureTests(dir) {
     if (!fs.existsSync(changesDir)) continue;
     try {
       for (const entry of fs.readdirSync(changesDir)) {
+        if (entry === 'archive') continue;
         const ftPath = path.join(changesDir, entry, 'feature_tests.json');
         if (fs.existsSync(ftPath)) return ftPath;
       }
@@ -28,24 +29,27 @@ try {
   const passed = tasks.filter(t => t.passes);
   const failed = tasks.filter(t => !t.passes);
 
-  console.log(`--- Harness Status: ${data.change_id || 'unknown'} ---`);
-  console.log(`Progress: ${passed.length}/${tasks.length} tasks passed`);
+  const lines = [`--- Harness Status: ${data.change_id || 'unknown'} ---`];
+  lines.push(`Progress: ${passed.length}/${tasks.length} tasks passed`);
 
   if (passed.length > 0) {
-    console.log('Completed:');
-    passed.forEach(t => console.log(`  [x] ${t.id} ${t.description}`));
+    lines.push('Completed:');
+    passed.forEach(t => lines.push(`  [x] ${t.id} ${t.description}`));
   }
   if (failed.length > 0) {
-    console.log('Remaining:');
+    lines.push('Remaining:');
     failed.forEach(t => {
       const a = t.evaluation_attempts || 0;
       const s = a > 0 ? ` (${a} attempts)` : '';
-      console.log(`  [ ] ${t.id} ${t.description}${s}`);
+      lines.push(`  [ ] ${t.id} ${t.description}${s}`);
     });
-    console.log('');
-    console.log(`Next: Task ${failed[0].id} - ${failed[0].description}`);
+    lines.push('');
+    lines.push(`Next: Task ${failed[0].id} - ${failed[0].description}`);
   }
-  console.log('---');
+  lines.push('---');
+
+  // Plain text output — Claude Code captures stdout from SessionStart hooks
+  console.log(lines.join('\n'));
 } catch {
   // Silently fail
 }

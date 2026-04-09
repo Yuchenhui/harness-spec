@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/stop-check.sh",
+            "command": "node ${CLAUDE_PLUGIN_ROOT}/hooks/stop-check.js",
             "timeout": 30
           }
         ]
@@ -17,7 +17,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/session-init.sh",
+            "command": "node ${CLAUDE_PLUGIN_ROOT}/hooks/session-init.js",
             "timeout": 10
           }
         ]
@@ -29,7 +29,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/post-tool-notify.sh",
+            "command": "node ${CLAUDE_PLUGIN_ROOT}/hooks/post-tool-notify.js",
             "timeout": 5
           }
         ]
@@ -52,7 +52,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/compact-handler.sh precompact",
+            "command": "node ${CLAUDE_PLUGIN_ROOT}/hooks/compact-handler.js precompact",
             "timeout": 10
           }
         ]
@@ -63,7 +63,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/compact-handler.sh postcompact",
+            "command": "node ${CLAUDE_PLUGIN_ROOT}/hooks/compact-handler.js postcompact",
             "timeout": 10
           }
         ]

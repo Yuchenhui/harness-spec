@@ -595,7 +595,7 @@ export class InitCommand {
           // Generate harness hook scripts (.claude/hooks/)
           const hooksDir = path.join(projectPath, tool.skillsDir, 'hooks');
           await FileSystemUtils.createDirectory(hooksDir);
-          const hookFiles = ['stop-check.sh', 'session-init.sh', 'post-tool-notify.sh', 'hooks.json'];
+          const hookFiles = ['stop-check.sh', 'session-init.sh', 'post-tool-notify.sh'];
           for (const hookFile of hookFiles) {
             const candidates = [
               path.join(packageRoot, 'hooks', hookFile),
@@ -604,12 +604,52 @@ export class InitCommand {
             for (const sourcePath of candidates) {
               if (fs.existsSync(sourcePath)) {
                 const content = await fs.promises.readFile(sourcePath, 'utf8');
-                const mode = hookFile.endsWith('.sh') ? 0o755 : 0o644;
+                const mode = 0o755;
                 await fs.promises.writeFile(path.join(hooksDir, hookFile), content, { mode });
                 break;
               }
             }
           }
+
+          // Merge harness hooks into existing .claude/settings.json (don't overwrite)
+          const settingsPath = path.join(projectPath, tool.skillsDir, 'settings.json');
+          let existingSettings: Record<string, unknown> = {};
+          if (fs.existsSync(settingsPath)) {
+            try {
+              existingSettings = JSON.parse(await fs.promises.readFile(settingsPath, 'utf8'));
+            } catch {
+              // If settings.json is malformed, start fresh but preserve the file
+              existingSettings = {};
+            }
+          }
+
+          // Merge hooks — append harness hooks without removing user's existing hooks
+          const existingHooks = (existingSettings.hooks ?? {}) as Record<string, unknown[]>;
+          const hooksPrefix = `${tool.skillsDir}/hooks`;
+
+          const harnessHooks: Record<string, unknown[]> = {
+            Stop: [{ hooks: [{ type: 'command', command: `${hooksPrefix}/stop-check.sh`, timeout: 30 }] }],
+            SessionStart: [{ hooks: [{ type: 'command', command: `${hooksPrefix}/session-init.sh`, timeout: 10 }] }],
+            PostToolUse: [{ matcher: 'Bash', hooks: [{ type: 'command', command: `${hooksPrefix}/post-tool-notify.sh`, timeout: 5 }] }],
+            PreToolUse: [{ matcher: 'Edit|Write', hooks: [{ type: 'command', command: `node -e "const p = JSON.parse(process.argv[1]).tool_input?.file_path || ''; if (/\\\\/(tests|__tests__)\\\\//.test(p) || /feature_tests\\\\.json$/.test(p)) { process.stderr.write('BLOCKED: ' + p); process.exit(2); }" "$CLAUDE_TOOL_INPUT"`, timeout: 5 }] }],
+          };
+
+          for (const [event, hooks] of Object.entries(harnessHooks)) {
+            const existing = existingHooks[event] ?? [];
+            // Check if harness hook is already registered (by command path)
+            const harnessCmd = (hooks[0] as Record<string, unknown[]>).hooks?.[0] as Record<string, string> | undefined;
+            const alreadyRegistered = Array.isArray(existing) && existing.some((h: unknown) => {
+              const entry = h as Record<string, unknown[]>;
+              const cmd = entry.hooks?.[0] as Record<string, string> | undefined;
+              return cmd?.command === harnessCmd?.command;
+            });
+            if (!alreadyRegistered) {
+              existingHooks[event] = [...(Array.isArray(existing) ? existing : []), ...hooks];
+            }
+          }
+
+          existingSettings.hooks = existingHooks;
+          await fs.promises.writeFile(settingsPath, JSON.stringify(existingSettings, null, 2) + '\n');
         }
 
         spinner.succeed(`Setup complete for ${tool.name}`);

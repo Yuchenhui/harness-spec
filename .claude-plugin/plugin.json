@@ -1,6 +1,6 @@
 {
   "name": "harness",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Harness Engineering — verified, recoverable, self-healing AI-assisted development with independent evaluation, auto-fix loops, and cross-session recovery.",
   "author": {
     "name": "yuchenhui",

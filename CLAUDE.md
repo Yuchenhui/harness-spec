@@ -32,6 +32,16 @@ docs/         — Documentation
 | evaluator | Phase 2 | Independent context (worktree isolation) — cannot see coding agent's reasoning |
 | fixer | Phase 2 | Edit restricted to src/app/lib/pkg/cmd — cannot touch tests/ |
 
+## Hook Activation Pattern
+
+Hooks are **dormant by default** — they do NOT interfere with normal Claude usage.
+Activation is controlled by a state file: `.claude/harness-active`
+
+- `/harness:apply` creates `.claude/harness-active` (contains path to feature_tests.json)
+- All hooks check for this file first — if absent, `exit 0` immediately
+- When all tasks pass, apply deletes the state file — hooks go dormant again
+- This follows the same pattern as ralph-wiggum (which uses `.claude/ralph-loop.local.md`)
+
 ## Hooks
 
 All hooks are `.js` files run via `node`. Never use bash/shell scripts.

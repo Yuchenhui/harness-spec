@@ -1,33 +1,24 @@
 #!/usr/bin/env node
-// Harness SessionStart Hook — injects progress summary into Claude's context
-// Cross-platform (Node.js). No bash dependency.
-//
-// SessionStart output schema:
-//   {"hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": "text"}}
+// Harness SessionStart Hook — shows progress if harness was active
+// ONLY outputs if .claude/harness-active exists
 
 const fs = require('fs');
 const path = require('path');
 
-function findFeatureTests(dir) {
-  for (const base of ['changes', path.join('openspec', 'changes')]) {
-    const changesDir = path.join(dir, base);
-    if (!fs.existsSync(changesDir)) continue;
-    try {
-      for (const entry of fs.readdirSync(changesDir)) {
-        if (entry === 'archive') continue;
-        const ftPath = path.join(changesDir, entry, 'feature_tests.json');
-        if (fs.existsSync(ftPath)) return ftPath;
-      }
-    } catch {}
-  }
-  return null;
+const stateFile = path.join(process.cwd(), '.claude', 'harness-active');
+if (!fs.existsSync(stateFile)) process.exit(0);
+
+let featureTestsPath;
+try {
+  featureTestsPath = fs.readFileSync(stateFile, 'utf8').trim();
+} catch {
+  process.exit(0);
 }
 
-const featureTests = findFeatureTests(process.cwd());
-if (!featureTests) process.exit(0);
+if (!featureTestsPath || !fs.existsSync(featureTestsPath)) process.exit(0);
 
 try {
-  const data = JSON.parse(fs.readFileSync(featureTests, 'utf8'));
+  const data = JSON.parse(fs.readFileSync(featureTestsPath, 'utf8'));
   const tasks = data.tasks || [];
   const passed = tasks.filter(t => t.passes);
   const failed = tasks.filter(t => !t.passes);
@@ -51,13 +42,10 @@ try {
   }
   lines.push('---');
 
-  // Use hookSpecificOutput to inject into Claude's context
   console.log(JSON.stringify({
     hookSpecificOutput: {
       hookEventName: 'SessionStart',
       additionalContext: lines.join('\n')
     }
   }));
-} catch {
-  // Silently fail — no output means no context injection
-}
+} catch {}

@@ -1,5 +1,11 @@
 You are the Harness Apply orchestrator. The user has provided a change-id: $ARGUMENTS
 
+**FIRST**: Activate harness mode by writing the feature_tests.json path to `.claude/harness-active`:
+```bash
+mkdir -p .claude
+```
+This state file tells all harness hooks to activate. Without it, hooks are dormant.
+
 Follow this workflow strictly:
 
 ## Phase 0: Spec Review (Interactive Quality Gate)
@@ -9,7 +15,12 @@ Follow this workflow strictly:
    - `**/changes/$ARGUMENTS/tasks.md`
    - If neither is found, ask the user where tasks.md is located
 
-2. Check whether `feature_tests.json` already exists (in the same directory):
+2. Write the feature_tests.json path to `.claude/harness-active`:
+   ```bash
+   echo "changes/$ARGUMENTS/feature_tests.json" > .claude/harness-active
+   ```
+
+3. Check whether `feature_tests.json` already exists (in the same directory):
    - If it exists and some entries have passes=true -> skip Phase 0 and Phase 1, enter recovery mode (Phase 2)
    - If it does not exist -> continue
 
@@ -298,7 +309,13 @@ After the Fixer finishes, return to 2b to re-evaluate.
 
 ## Phase 3: Completion
 
-After all tasks have PASS status (L5 tasks require human confirmation), output a summary:
+**Deactivate harness mode**:
+```bash
+rm -f .claude/harness-active
+```
+This tells all hooks to go dormant — normal Claude usage is unaffected after this point.
+
+Output a summary:
 - Pass status of each task (level, which attempt it passed on)
 - How many tests the Initializer generated and how many scenarios they covered
-- Remind the user they can run `/opsx:verify` and `/opsx:archive`
+- Remind the user they can run `/harness:verify` and `/harness:archive`

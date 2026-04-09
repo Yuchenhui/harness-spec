@@ -1,11 +1,30 @@
 #!/usr/bin/env node
 // Harness PreToolUse Hook — blocks modification of test/harness files
-// Cross-platform (Node.js). Deterministic regex check, no LLM call.
-//
-// PreToolUse output schema:
-//   Allow: {} or {"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"allow"}}
-//   Deny:  {"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"..."}}
+// ONLY active when a harness workflow is running (feature_tests.json exists)
+// When not in harness mode: does nothing, zero impact on normal usage.
 
+const fs = require('fs');
+const path = require('path');
+
+// Quick check: is harness mode active?
+function isHarnessActive() {
+  for (const base of ['changes', path.join('openspec', 'changes')]) {
+    const changesDir = path.join(process.cwd(), base);
+    if (!fs.existsSync(changesDir)) continue;
+    try {
+      for (const entry of fs.readdirSync(changesDir)) {
+        if (entry === 'archive') continue;
+        if (fs.existsSync(path.join(changesDir, entry, 'feature_tests.json'))) return true;
+      }
+    } catch {}
+  }
+  return false;
+}
+
+// Not in harness mode — do nothing, allow everything
+if (!isHarnessActive()) process.exit(0);
+
+// In harness mode — check the file being modified
 let input = '';
 process.stdin.setEncoding('utf8');
 process.stdin.on('data', chunk => { input += chunk; });
@@ -13,11 +32,8 @@ process.stdin.on('end', () => {
   try {
     const data = JSON.parse(input);
     const filePath = data.tool_input?.file_path || data.tool_input?.path || '';
-
-    // Normalize path separators (Windows uses \, Unix uses /)
     const normalized = filePath.replace(/\\/g, '/');
 
-    // Check if this is a protected file
     const isProtected =
       /\/(tests|__tests__)\//.test(normalized) ||
       /\/test\//.test(normalized) ||
@@ -29,12 +45,12 @@ process.stdin.on('end', () => {
         hookSpecificOutput: {
           hookEventName: 'PreToolUse',
           permissionDecision: 'deny',
-          permissionDecisionReason: `Cannot modify test/harness file: ${filePath}`
+          permissionDecisionReason: `Harness: cannot modify test/harness file: ${filePath}`
         }
       }));
     }
-    // If not protected, output nothing — allow by default
+    // Not protected — no output, default allow
   } catch {
-    // Parse error — allow by default
+    // Parse error — allow
   }
 });

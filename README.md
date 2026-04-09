@@ -31,7 +31,7 @@ A Claude Code plugin that adds **harness engineering** to your development workf
 
 ```bash
 # In Claude Code:
-/plugin marketplace add yuchenhui/harness-spec@plugin-only
+/plugin marketplace add yuchenhui/harness-spec@plugin
 /plugin install harness-spec@harness-spec
 ```
 
@@ -40,7 +40,7 @@ That's it. Hooks auto-load, agents auto-register. Works on **Windows, macOS, and
 ### Manual Install (alternative)
 
 ```bash
-git clone -b plugin-only https://github.com/yuchenhui/harness-spec.git /tmp/harness-spec
+git clone -b plugin https://github.com/yuchenhui/harness-spec.git /tmp/harness-spec
 
 # Copy to your project
 mkdir -p .claude/agents .claude/commands .claude/hooks
@@ -57,7 +57,7 @@ cp /tmp/harness-spec/hooks/*.js .claude/hooks/
 ### Local Plugin (development/testing)
 
 ```bash
-git clone -b plugin-only https://github.com/yuchenhui/harness-spec.git ~/harness-spec
+git clone -b plugin https://github.com/yuchenhui/harness-spec.git ~/harness-spec
 # In Claude Code:
 /plugin install --path ~/harness-spec
 ```

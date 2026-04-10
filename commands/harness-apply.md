@@ -1,4 +1,11 @@
-You are the Harness Apply orchestrator. The user has provided a change-id: $ARGUMENTS
+You are the Harness Apply orchestrator. The user has provided arguments: $ARGUMENTS
+
+**Parse arguments**:
+- First positional argument (or first token before flags) = `change-id`
+- `--yes` or `-y` flag = **headless mode**: auto-accept all spec review suggestions, no AskUserQuestion prompts
+- `--interactive` or no flag = interactive mode (default)
+
+If `--yes` is present in $ARGUMENTS, set INTERACTIVE=false. Otherwise INTERACTIVE=true.
 
 Follow this workflow strictly:
 
@@ -26,7 +33,55 @@ Follow this workflow strictly:
    Project root: {pwd}
    ---
 
-4. **Parse the Reviewer's JSON report and interact with the user item by item via AskUserQuestion, in priority order.**
+4. **Parse the Reviewer's JSON report. Branch on INTERACTIVE mode:**
+
+   ### INTERACTIVE=false (headless, --yes mode)
+
+   **Do NOT call AskUserQuestion.** Automatically apply all reviewer suggestions with these default rules:
+
+   **Auto-accept:**
+   - All `design_gaps` → add suggested scenarios to specs.md
+   - All `spec_issues` where severity is `needs_improvement` → apply suggested_replacement
+   - All `missing_scenarios` of type `error_case` or `edge_case` → add to specs.md
+   - All `unverifiable_scenarios` → downgrade to L5 human review
+
+   **Auto-escalate (still require user even in --yes mode):**
+   - If `quality_score < 3` → STOP and ask user "Review found critical spec quality issues (score {score}/10). Cannot proceed in headless mode. Rerun without --yes."
+   - If any `spec_issues` have severity `insufficient` AND no `suggested_replacement` → STOP and ask user
+   - If `task_alignment.specs_without_tasks` has entries AND these would require new tasks → STOP and ask user (changing tasks.md is too risky to automate)
+
+   **Audit log**: Write ALL auto-decisions to `changes/{change-id}/review-decisions.json`:
+   ```json
+   {
+     "timestamp": "<ISO8601>",
+     "mode": "auto (--yes)",
+     "quality_score": 6,
+     "decisions": {
+       "strengthened": [
+         {"original": "...", "applied": "..."}
+       ],
+       "added": [
+         {"type": "error_case", "scenario": "...", "source": "design_gap"}
+       ],
+       "downgraded": [
+         {"scenario": "...", "to": "L5_human_review"}
+       ],
+       "skipped": [
+         {"scenario": "...", "reason": "no suggested_replacement"}
+       ]
+     }
+   }
+   ```
+
+   Proceed directly to step 5 (write changes back) with the auto-decisions.
+   In headless mode, skip steps 6 and 7 as well:
+   - Step 6 (regenerate tasks?): auto-choose "no new tasks needed" — new error/edge scenarios are treated as additional verification for existing tasks
+   - Step 7 (final confirmation): skip entirely
+   Go straight from step 5 to Phase 1.
+
+   ### INTERACTIVE=true (default)
+
+   Call AskUserQuestion item by item in priority order as specified below.
 
    **4a. If quality_score >= 8 and there are no critical issues:**
 
@@ -292,7 +347,39 @@ Rules:
 
 After the Fixer finishes, return to 2b to re-evaluate.
 
-**FAIL and attempts >= 3**: Stop and tell the user this task has failed 3 fix attempts. Paste the latest evaluation results and ask the user how to proceed.
+**FAIL and attempts >= 3**: Do NOT immediately punt to the user. First, launch the spec-reviewer subagent in **escalation mode** to diagnose the root cause — it reads the proposal/design/specs/tasks plus the accumulated failing test output and categorizes the blocker.
+
+Use the Task tool to launch the spec-reviewer with the following prompt:
+
+---
+**Escalation Mode** — Task {id} has failed 3 fix attempts. Diagnose the root cause.
+
+Change: $ARGUMENTS
+Change directory: {change directory path}
+Task: {id} - {description}
+Verification level: {verification_level}
+Spec scenarios: {list spec_scenarios}
+
+Accumulated evaluation failures (from each fix attempt):
+{paste the last 3 evaluation reports, including raw test output}
+
+Please determine which category this failure belongs to, and output an `escalation_report` JSON (see your system prompt for the schema). Categories:
+- CODE_ISSUE — implementation bug, the spec is clear, fix should succeed with more context
+- TEST_BUG — the pre-generated test itself is wrong (asserts something spec doesn't mandate)
+- SPEC_UNCLEAR — spec is ambiguous/underspecified; no implementation can cleanly satisfy it
+- TASK_TOO_BIG — one task conflates multiple features; should be split
+---
+
+After the reviewer returns its `escalation_report`, present the diagnosis to the user via AskUserQuestion with options tailored to the category:
+
+- **CODE_ISSUE** → "Launch one more fixer attempt with the reviewer's additional context" / "Abandon this task" / "I'll debug manually"
+- **TEST_BUG** → "Rewrite the offending test (exit harness briefly to edit the test file)" / "Mark task as blocked and continue" / "I'll fix it manually"
+- **SPEC_UNCLEAR** → "Re-run Phase 0 to strengthen the spec" / "Downgrade to L5 human review" / "Mark task as blocked"
+- **TASK_TOO_BIG** → "Split task and regenerate feature_tests.json (re-run Phase 1 for this task)" / "Keep as-is and mark blocked" / "I'll edit tasks.md manually"
+
+In headless mode (`--yes`), do NOT auto-select — always pause and ask. 3 fix failures is a serious signal that warrants human judgement.
+
+Paste the full escalation_report alongside the question so the user has context.
 
 **NEEDS_HUMAN_REVIEW (L5)**: Tell the user the screenshot location, pause, and wait for human confirmation before continuing.
 

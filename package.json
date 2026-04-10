@@ -1,6 +1,6 @@
 {
   "name": "harness-spec",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Harness Engineering for AI-assisted development — verified, recoverable, self-healing spec-driven workflows. Built on OpenSpec core.",
   "keywords": [
     "harness",

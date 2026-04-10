@@ -3,7 +3,7 @@
 ## 一句话版本
 
 ```
-/opsx:propose → /opsx:specs → /opsx:tasks → /project:harness-apply → /opsx:verify → /opsx:archive
+/harness:propose → /harness:continue → /harness:continue → /project:harness-apply → /harness:verify → /harness:archive
                                                      │
                                         自动完成以下所有步骤
 ```
@@ -33,7 +33,7 @@
 │   │
 │   ├── AskUserQuestion：需要重新生成 tasks 吗？
 │   │   ○ 不需要，新增场景属于已有 task (Recommended)
-│   │   ○ 重新运行 /opsx:tasks
+│   │   ○ 重新运行 /harness:continue
 │   │
 │   └── AskUserQuestion：确认进入下一阶段？
 │       ○ 确认 (Recommended)
@@ -77,33 +77,33 @@
 └── Phase 3: 完成 ───────────────────────────── 全自动
     │
     ├── 输出汇总报告
-    └── 提示：/opsx:verify → /opsx:archive
+    └── 提示：/harness:verify → /harness:archive
 ```
 
 ## 你需要做什么 vs 自动完成
 
 | 步骤 | 谁做 | 你做什么 |
 |------|------|---------|
-| `/opsx:propose` | 你 | 输入需求描述 |
-| `/opsx:specs` | OpenSpec | 无 |
-| `/opsx:tasks` | OpenSpec | 无 |
+| `/harness:propose` | 你 | 输入需求描述 |
+| `/harness:continue` | OpenSpec | 无 |
+| `/harness:continue` | OpenSpec | 无 |
 | `/project:harness-apply` | 你 | 输入这一个命令 |
 | Phase 0: Spec Review | Reviewer + 你 | **选选择题**（接受/跳过/自己改） |
 | Phase 1: Initializer | 自动 | 无 |
 | Phase 2: 编码+评估 | 自动 | L5 看截图确认（如果有 UI 样式任务） |
 | Phase 2: 3 次修复失败 | 自动 → 你 | 偶尔需要决策 |
 | Phase 3: 完成 | 自动 | 无 |
-| `/opsx:verify` | 你 | 输入命令 |
-| `/opsx:archive` | 你 | 输入命令 |
+| `/harness:verify` | 你 | 输入命令 |
+| `/harness:archive` | 你 | 输入命令 |
 
 ## 文件变化时间线
 
 ```
 开始前:
 changes/add-user-auth/
-├── proposal.md              ← /opsx:propose 生成
-├── specs.md                 ← /opsx:specs 生成
-└── tasks.md                 ← /opsx:tasks 生成
+├── proposal.md              ← /harness:propose 生成
+├── specs.md                 ← /harness:continue 生成
+└── tasks.md                 ← /harness:continue 生成
 
 Phase 0 后:
 changes/add-user-auth/
@@ -143,8 +143,8 @@ app/                          ← Coding Agent 写的实现代码
 Phase 3 完成后:
   所有 feature_tests.json 的 passes = true
   所有测试 PASS
-  → /opsx:verify 验证（对齐的 specs.md）
-  → /opsx:archive 归档全部
+  → /harness:verify 验证（对齐的 specs.md）
+  → /harness:archive 归档全部
 ```
 
 ## Session 中断和恢复

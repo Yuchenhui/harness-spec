@@ -1,8 +1,10 @@
 # Harness Spec
 
 > **⚠️ UNDER ACTIVE DEVELOPMENT — NOT READY FOR PRODUCTION USE**
+>
+> **⚠️ NOT COMPATIBLE WITH OpenSpec projects.** Despite borrowing some concepts, harness-spec is an **independent** spec-driven workflow. It does not understand OpenSpec's delta spec format, uses a different directory layout (`changes/` not `openspec/changes/`), and `/harness:archive` does not merge deltas into baseline specs. Do not install both in the same project — see "Compatibility" below.
 
-Verified, recoverable, self-healing AI-assisted development for Claude Code.
+An independent Claude Code plugin for **harness engineering** — spec-driven development with independent evaluation and auto-fix loops.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Status: Development](https://img.shields.io/badge/status-development-orange.svg)]()
@@ -15,13 +17,13 @@ Verified, recoverable, self-healing AI-assisted development for Claude Code.
 
 A Claude Code plugin that adds **harness engineering** to your development workflow:
 
-- **Spec Review** — Interactive quality gate before coding (AskUserQuestion-driven)
+- **Spec Review** — Interactive quality gate before coding (requires human, not headless)
 - **Test-First** — Generates test skeletons from specs BEFORE implementation
-- **Independent Evaluation** — Separate subagent verifies code in isolated worktree (never self-evaluating)
-- **Auto-Fix Loop** — Failed evaluations trigger automatic repair (max 3 attempts)
+- **Independent Evaluation** — Evaluator runs as a separate subagent with its own context, after the coding agent commits
+- **Auto-Fix Loop** — Failed evaluations trigger automatic repair (max 3 attempts per task)
 - **Exit Guard** — Stop hook prevents Claude from exiting until all tasks pass
-- **Session Recovery** — Progress auto-loaded on new sessions, preserved during context compaction
-- **Persistent Memory** — Evaluator and reviewer learn project patterns over time
+- **Session Recovery** — Progress persisted to `feature_tests.json`, reloaded via SessionStart hook, preserved during context compaction via PreCompact hook
+- **Graded Rubric** — 0-5 scoring instead of binary PASS/FAIL, with pluggable custom rubrics
 
 ## Requirements
 
@@ -125,9 +127,9 @@ git clone -b plugin https://github.com/yuchenhui/harness-spec.git ~/harness-spec
 /harness:archive
 ```
 
-### Standalone (without OpenSpec)
+### Manual mode (skip the spec workflow)
 
-Create `feature_tests.json` manually:
+If you already have a project with existing tests, you can skip propose/review/init-tests and go straight to the harness apply loop by creating `feature_tests.json` manually:
 
 ```json
 {
@@ -145,6 +147,28 @@ Create `feature_tests.json` manually:
 ```
 
 Then: `/harness:apply my-feature`
+
+## Compatibility
+
+### With OpenSpec — ❌ NOT COMPATIBLE
+
+harness-spec was originally inspired by OpenSpec but has diverged significantly:
+
+| Aspect | OpenSpec | harness-spec |
+|--------|----------|--------------|
+| Directory | `openspec/changes/` | `changes/` |
+| Specs | Multi-file `specs/<capability>/spec.md` | Single `specs.md` per change |
+| Delta format | ADDED/MODIFIED/REMOVED/RENAMED blocks | No delta concept |
+| Archive | Merges deltas into baseline specs | Just moves directory |
+| Validation | `openspec validate` schema | None (relies on evaluator) |
+
+**Do not install both in the same project.** If you have an OpenSpec project, harness-spec will create a parallel directory tree, ignore your delta specs, and break `openspec archive`.
+
+**Recommendation**: use harness-spec on new projects OR on projects without OpenSpec. If you want harness's evaluation loop on an OpenSpec project, only use `/harness:apply`, `/harness:verify`, `/harness:commit` — avoid the spec-editing commands (`/harness:propose`, `/harness:new`, `/harness:continue`, `/harness:review`, `/harness:archive`).
+
+### Interactive vs Headless
+
+Phase 0 (Spec Review) uses `AskUserQuestion` for interactive confirmation — it is **not headless**. Long-running unattended harness use should skip Phase 0 by pre-creating `feature_tests.json` and running `/harness:apply` in continue mode.
 
 ## How It Works
 
@@ -189,11 +213,12 @@ Then: `/harness:apply my-feature`
 
 | Feature | How | Benefit |
 |---------|-----|---------|
-| **Worktree Isolation** | `isolation: worktree` on evaluator | Evaluator physically cannot see uncommitted coding changes |
-| **Persistent Memory** | `memory: project` on evaluator + reviewer | Learns failure patterns and project conventions over time |
-| **Effort Levels** | `effort: high` on evaluator/reviewer/initializer | Thorough verification; fixer uses `effort: medium` for focused fixes |
-| **Compaction Safety** | PreCompact/PostCompact hooks | Long sessions don't lose progress when context is compressed |
-| **Prompt-Based Protection** | `type: prompt` PreToolUse hook | LLM judges file modifications, catches non-standard test paths |
+| **Commit Isolation** | Orchestrator requires `git commit` before launching evaluator | Evaluator only sees committed state, not the coding agent's uncommitted changes. This is "commit isolation" — not full filesystem isolation. |
+| **Role-specific models** | Evaluator/Reviewer/Initializer use **opus**; Fixer uses **sonnet** | Adversarial roles get the more thorough model; focused fixes use the faster one |
+| **Graded rubric (0-5)** | Evaluator outputs SCORE, not PASS/FAIL | Score 3 triggers confirmation, 4-5 auto-advance |
+| **Pluggable rubrics** | Drop `.md` files in `.claude/harness-rubrics/` | Add custom security/perf/a11y criteria per project |
+| **Compaction Safety** | PreCompact hook saves progress to `claude-progress.txt` | Long sessions survive context compression |
+| **Dormant-by-default** | All hooks check `.claude/harness-active` state file | Zero impact on normal Claude Code usage |
 
 ## Documentation
 

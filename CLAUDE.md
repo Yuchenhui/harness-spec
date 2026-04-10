@@ -28,11 +28,13 @@ docs/         — Documentation
 | Agent | Phase | Model | Key Constraint |
 |-------|-------|-------|----------------|
 | spec-reviewer | Phase 0 | opus | Outputs JSON report only — does NOT modify files |
-| initializer | Phase 1 | opus | Generates tests BEFORE coding — coding agent cannot modify them |
-| evaluator | Phase 2 | **opus** | Adversarial. Independent context (worktree isolation). Outputs 0-5 score. |
-| fixer | Phase 2 | sonnet | Focused fixes. Edit restricted to src/app/lib/pkg/cmd. |
+| initializer | Phase 1 | opus | Generates tests BEFORE coding — coding agent should not modify them |
+| evaluator | Phase 2 | **opus** | Adversarial, runs as independent subagent. Reads code only after coding agent commits. Outputs 0-5 score. |
+| fixer | Phase 2 | sonnet | Reads raw test failures directly (not evaluator's interpretation). Edit restricted to src/app/lib/pkg/cmd via tools config. |
 
 **Model assignment rationale**: Adversarial/review roles use Opus (more careful, catches more). Focused implementation roles use Sonnet (faster, cheaper). Inspired by specwright's pattern.
+
+**Isolation note**: Evaluator independence is enforced by (1) running as a separate subagent with its own context, (2) the orchestrator requiring `git commit` before launching the evaluator, and (3) tool restrictions on the fixer. This is "commit isolation" — not true filesystem isolation. If the coding agent has uncommitted changes, the evaluator could still see them.
 
 ## Graded Scoring (0-5)
 

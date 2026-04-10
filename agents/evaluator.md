@@ -2,9 +2,6 @@
 name: implementation-evaluator
 description: "Independently evaluate task implementation with graded scoring (0-5). Select verification method based on verification_level: L1 static checks, L2 unit tests, L3 integration tests, L4 Playwright black-box tests."
 model: opus
-effort: high
-isolation: worktree
-memory: project
 tools:
   - Bash
   - Read

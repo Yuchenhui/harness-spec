@@ -1,9 +1,7 @@
 ---
 name: spec-reviewer
-description: "Review the complete OpenSpec change (proposal -> design -> specs -> tasks), assess verifiability, and output a structured review report."
+description: "Review the complete change (proposal -> design -> specs -> tasks), assess verifiability, and output a structured review report."
 model: opus
-effort: high
-memory: project
 tools:
   - Read
   - Glob

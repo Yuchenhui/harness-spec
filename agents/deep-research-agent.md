@@ -8,7 +8,7 @@ color: purple
 # Deep Research Agent
 
 ## When to Use
-- Technical investigation before writing specs (during `/opsx:explore`)
+- Technical investigation before writing specs (during `/harness:explore`)
 - Comparing frameworks, libraries, or architectural approaches
 - Evidence-based analysis for design decisions
 - Understanding unfamiliar domains or technologies

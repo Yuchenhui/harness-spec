@@ -13,10 +13,12 @@ Follow this workflow strictly:
 Before anything else, quickly verify the project is in a healthy state:
 ```bash
 git status --short
+node ${CLAUDE_PLUGIN_ROOT}/scripts/worktree.js prune
 ```
 - If there are uncommitted changes: warn the user "Uncommitted changes detected. Commit or stash before starting harness."
 - If a previous `.claude/harness-active` exists: ask "A previous harness session was interrupted. Resume it or start fresh?"
 - Run the project's existing test command (if detectable) to confirm the baseline is green. If tests fail before we start, flag it.
+- `worktree.js prune` cleans up any orphan evaluation worktrees from previous runs.
 
 ## Phase 0: Spec Review (Interactive Quality Gate)
 
@@ -239,15 +241,37 @@ git add <changed files>
 git commit -m "feat($ARGUMENTS): task {id} - {description}"
 ```
 
-### 2b. Independent Evaluation
+### 2b. Setup worktree isolation (real, not theater)
+
+Before launching the evaluator, create an isolated git worktree at the
+coding agent's committed state. The evaluator will run tests inside
+this worktree — it physically cannot see uncommitted changes.
+
+```bash
+WORKTREE_PATH=$(node ${CLAUDE_PLUGIN_ROOT}/scripts/worktree.js setup {task_id})
+```
+
+Capture the path. If the output starts with `[harness]`, it's a fallback
+warning — the script falls back to commit isolation (main cwd) if the
+project isn't a git repo or git worktree fails.
+
+### 2c. Independent Evaluation
 
 **Critical: Use the Task tool to launch an independent subagent for evaluation — do not evaluate yourself.**
+
+**Critical: Pass WORKTREE_PATH into the evaluator prompt so it runs commands in the isolated worktree.**
 
 Adjust the evaluator's prompt based on verification_level:
 
 **L1/L2/L3 tasks**:
 ---
-You are a code evaluator. Please verify the implementation of the following task:
+You are a code evaluator. Please verify the implementation of the following task.
+
+WORKING DIRECTORY: {WORKTREE_PATH}
+
+**CRITICAL**: Prefix EVERY Bash call with `cd {WORKTREE_PATH} && ...`
+This is an isolated git worktree at the committed state. You cannot see
+uncommitted changes from the coding agent.
 
 Task: {id} - {description}
 Verification level: {verification_level}
@@ -255,14 +279,16 @@ Spec Scenarios:
 {list spec_scenarios}
 
 Steps:
-1. Run verification commands: {list verification_commands}
-2. If there are setup_commands, run them first
+1. For each verification command, run it prefixed with `cd {WORKTREE_PATH} &&`
+   Example: `cd {WORKTREE_PATH} && pytest tests/test_auth.py -v`
+2. If there are setup_commands, run them first (also prefixed with cd)
 3. Check whether each spec scenario has a corresponding passing test
 4. If there are teardown_commands, run them
-5. Output STATUS: PASS or FAIL, and CONFIDENCE: high/medium/low.
+5. Output STATUS, SCORE (0-5), LEVEL, RESULTS per the format in your system prompt.
 
 **IMPORTANT: Regression check** — after running this task's verification_commands,
-also re-run verification_commands from ALL previously passed tasks in feature_tests.json.
+also re-run verification_commands from ALL previously passed tasks in feature_tests.json
+(each also prefixed with `cd {WORKTREE_PATH}`).
 If any previously passing test now fails, report as FAIL with "REGRESSION" in the reason.
 ---
 
@@ -270,9 +296,12 @@ If any previously passing test now fails, report as FAIL with "REGRESSION" in th
 ---
 You are a QA engineer performing black-box testing. Do not read code.
 
+WORKING DIRECTORY: {WORKTREE_PATH}
+**Start services FROM the worktree**: `cd {WORKTREE_PATH} && <setup_command>`
+
 Task: {id} - {description}
 
-First run setup_commands to start services: {setup_commands}
+First run setup_commands from the worktree: `cd {WORKTREE_PATH} && {setup_commands}`
 
 Then use Playwright browser tools to test according to the following scenarios:
 {paste browser_verification.scenarios}
@@ -282,16 +311,17 @@ For each scenario:
 2. Check assertions
 3. Take screenshots at key steps
 
-After completion, run teardown_commands: {teardown_commands}
+After completion, run teardown_commands: `cd {WORKTREE_PATH} && {teardown_commands}`
 
-Output STATUS: PASS or FAIL
+Output STATUS, SCORE, LEVEL, RESULTS per the format in your system prompt.
 ---
 
 **L5 tasks**:
 ---
 You are a QA engineer.
 
-First run setup_commands to start services.
+WORKING DIRECTORY: {WORKTREE_PATH}
+Start services from the worktree: `cd {WORKTREE_PATH} && {setup_command}`
 Take screenshots per the screenshots configuration: {browser_verification.screenshots}
 Save screenshots in changes/$ARGUMENTS/evaluations/screenshots/
 
@@ -299,13 +329,13 @@ Output STATUS: NEEDS_HUMAN_REVIEW
 Include the list of screenshot paths.
 ---
 
-### 2c. Handle Evaluation Results
+### 2d. Handle Evaluation Results
 
-**PASS (score 4-5)**: Update feature_tests.json (passes=true, score), update claude-progress.txt, git commit, continue to the next task.
+**PASS (score 4-5)**: Update feature_tests.json (passes=true, score), update claude-progress.txt, git commit, tear down worktree, continue to the next task.
 
 **PASS (score 3)**: Threshold met but quality is thin. Use AskUserQuestion: "Task {id} passed with score 3/5 (acceptable but thin). Accept and continue, or review manually?"
 
-**FAIL (score 0-2)**: Launch fixer subagent (see below).
+**FAIL (score 0-2)**: Launch fixer subagent (see below). **Do NOT tear down the worktree yet** — the fixer runs against the main working tree (where it can edit), then we'll re-create the worktree for the next evaluation round.
 
 When score 0-2 AND attempts < 3: Use the Task tool to launch a fixer subagent with the following prompt:
 
@@ -330,7 +360,20 @@ Rules:
 - No refactoring, no reformatting, no type-ignore comments
 ---
 
-After the Fixer finishes, return to 2b to re-evaluate with a fresh evaluator subagent.
+After the Fixer finishes and commits:
+
+1. Tear down the old worktree: `node ${CLAUDE_PLUGIN_ROOT}/scripts/worktree.js cleanup {task_id}`
+2. Create a fresh worktree at the new HEAD (post-fix): `WORKTREE_PATH=$(node ${CLAUDE_PLUGIN_ROOT}/scripts/worktree.js setup {task_id})`
+3. Return to 2c to re-evaluate with a fresh evaluator subagent.
+
+### 2e. Tear down worktree
+
+After the task is accepted (PASS) or abandoned (3 fix attempts failed):
+```bash
+node ${CLAUDE_PLUGIN_ROOT}/scripts/worktree.js cleanup {task_id}
+```
+
+This runs even on failure so we don't accumulate orphan worktrees.
 
 **FAIL and attempts >= 3**: Stop and tell the user this task has failed 3 fix attempts. Paste the latest evaluation results and ask the user how to proceed.
 

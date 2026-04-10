@@ -29,12 +29,23 @@ docs/         — Documentation
 |-------|-------|-------|----------------|
 | spec-reviewer | Phase 0 | opus | Outputs JSON report only — does NOT modify files |
 | initializer | Phase 1 | opus | Generates tests BEFORE coding — coding agent should not modify them |
-| evaluator | Phase 2 | **opus** | Adversarial, runs as independent subagent. Reads code only after coding agent commits. Outputs 0-5 score. |
-| fixer | Phase 2 | sonnet | Reads raw test failures directly (not evaluator's interpretation). Edit restricted to src/app/lib/pkg/cmd via tools config. |
+| evaluator | Phase 2 | **opus** | Adversarial subagent. Runs in an **isolated git worktree** at the committed state — physically cannot see uncommitted changes. Outputs 0-5 score. |
+| fixer | Phase 2 | sonnet | Reads raw test failures directly (not evaluator's interpretation). Runs in main worktree (where it can edit). |
 
-**Model assignment rationale**: Adversarial/review roles use Opus (more careful, catches more). Focused implementation roles use Sonnet (faster, cheaper). Inspired by specwright's pattern.
+**Model assignment rationale**: Adversarial/review roles use Opus (more careful, catches more). Focused implementation roles use Sonnet (faster, cheaper).
 
-**Isolation note**: Evaluator independence is enforced by (1) running as a separate subagent with its own context, (2) the orchestrator requiring `git commit` before launching the evaluator, and (3) tool restrictions on the fixer. This is "commit isolation" — not true filesystem isolation. If the coding agent has uncommitted changes, the evaluator could still see them.
+**Isolation mechanism**: Before each evaluation, the orchestrator runs
+`scripts/worktree.js setup <task_id>` which:
+1. Runs `git worktree add --detach <temp-path> <HEAD-sha>` to create an isolated copy
+2. Symlinks gitignored dependency directories (node_modules, venv, etc.) from main
+3. Prints the temp path — evaluator runs all commands via `cd <path> && ...`
+
+After evaluation, `scripts/worktree.js cleanup <task_id>` removes the worktree.
+Orphans from previous runs are cleaned up by `scripts/worktree.js prune` in Phase 0.
+
+**Fallback**: If the project isn't a git repo, the script prints a warning and
+returns the main cwd — evaluator runs in the main working directory (degraded
+to "best-effort commit isolation").
 
 ## Graded Scoring (0-5)
 

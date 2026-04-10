@@ -213,10 +213,11 @@ Phase 0 (Spec Review) uses `AskUserQuestion` for interactive confirmation — it
 
 | Feature | How | Benefit |
 |---------|-----|---------|
-| **Commit Isolation** | Orchestrator requires `git commit` before launching evaluator | Evaluator only sees committed state, not the coding agent's uncommitted changes. This is "commit isolation" — not full filesystem isolation. |
+| **Real Worktree Isolation** | `scripts/worktree.js` runs `git worktree add --detach` before each evaluation | Evaluator runs in a physically isolated git worktree at the committed state. Cannot see uncommitted changes even if they exist. Dependency dirs (node_modules, venv) symlinked in. |
 | **Role-specific models** | Evaluator/Reviewer/Initializer use **opus**; Fixer uses **sonnet** | Adversarial roles get the more thorough model; focused fixes use the faster one |
 | **Graded rubric (0-5)** | Evaluator outputs SCORE, not PASS/FAIL | Score 3 triggers confirmation, 4-5 auto-advance |
 | **Pluggable rubrics** | Drop `.md` files in `.claude/harness-rubrics/` | Add custom security/perf/a11y criteria per project |
+| **Decoupled fixer** | Fixer re-runs failing tests itself, not evaluator's interpretation | Fixer forms independent diagnosis from raw test output, not from evaluator's ROOT CAUSE analysis |
 | **Compaction Safety** | PreCompact hook saves progress to `claude-progress.txt` | Long sessions survive context compression |
 | **Dormant-by-default** | All hooks check `.claude/harness-active` state file | Zero impact on normal Claude Code usage |
 

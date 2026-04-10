@@ -297,11 +297,13 @@ Include the list of screenshot paths.
 
 ### 2c. Handle Evaluation Results
 
-**PASS (confidence: high/medium)**: Update feature_tests.json (passes=true), update claude-progress.txt, git commit, continue to the next task.
+**PASS (score 4-5)**: Update feature_tests.json (passes=true, score), update claude-progress.txt, git commit, continue to the next task.
 
-**PASS (confidence: low)**: Tests pass but evaluator has concerns. Use AskUserQuestion: "Evaluator says PASS but with low confidence: {reason}. Accept and continue, or review manually?"
+**PASS (score 3)**: Threshold met but quality is thin. Use AskUserQuestion: "Task {id} passed with score 3/5 (acceptable but thin). Accept and continue, or review manually?"
 
-**FAIL and attempts < 3**: Use the Task tool to launch a fixer subagent with the following prompt:
+**FAIL (score 0-2)**: Launch fixer subagent (see below).
+
+When score 0-2 AND attempts < 3: Use the Task tool to launch a fixer subagent with the following prompt:
 
 ---
 You are a code fixer. Please fix the code based on the following evaluation results:

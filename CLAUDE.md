@@ -25,12 +25,33 @@ docs/         — Documentation
 
 ## Agent Roles
 
-| Agent | Phase | Key Constraint |
-|-------|-------|----------------|
-| spec-reviewer | Phase 0 | Outputs JSON report only — does NOT modify files |
-| initializer | Phase 1 | Generates tests BEFORE coding — coding agent cannot modify them |
-| evaluator | Phase 2 | Independent context (worktree isolation) — cannot see coding agent's reasoning |
-| fixer | Phase 2 | Edit restricted to src/app/lib/pkg/cmd — cannot touch tests/ |
+| Agent | Phase | Model | Key Constraint |
+|-------|-------|-------|----------------|
+| spec-reviewer | Phase 0 | opus | Outputs JSON report only — does NOT modify files |
+| initializer | Phase 1 | opus | Generates tests BEFORE coding — coding agent cannot modify them |
+| evaluator | Phase 2 | **opus** | Adversarial. Independent context (worktree isolation). Outputs 0-5 score. |
+| fixer | Phase 2 | sonnet | Focused fixes. Edit restricted to src/app/lib/pkg/cmd. |
+
+**Model assignment rationale**: Adversarial/review roles use Opus (more careful, catches more). Focused implementation roles use Sonnet (faster, cheaper). Inspired by specwright's pattern.
+
+## Graded Scoring (0-5)
+
+Tasks are evaluated on a 0-5 scale, not binary PASS/FAIL:
+
+- **0** Broken — verification fails
+- **1** Incomplete — spec not met
+- **2** Happy path only — no edge cases
+- **3** Acceptable — passes spec, thin (threshold to advance)
+- **4** Solid — full coverage + edge cases
+- **5** Exceeds — proactive hardening
+
+Default threshold: score >= 3. Score 3 triggers user confirmation. Score 4-5 auto-advances.
+
+## Pluggable Rubrics
+
+Drop `.md` files into `.claude/harness-rubrics/` to add custom evaluation criteria.
+The evaluator loads them at runtime and applies alongside the default scoring.
+Example rubrics are in `rubrics/` — copy to your project's `.claude/harness-rubrics/` to activate.
 
 ## Hook Activation Pattern
 

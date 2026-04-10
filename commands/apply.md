@@ -8,6 +8,16 @@ This state file tells all harness hooks to activate. Without it, hooks are dorma
 
 Follow this workflow strictly:
 
+## Pre-flight Check (5 seconds)
+
+Before anything else, quickly verify the project is in a healthy state:
+```bash
+git status --short
+```
+- If there are uncommitted changes: warn the user "Uncommitted changes detected. Commit or stash before starting harness."
+- If a previous `.claude/harness-active` exists: ask "A previous harness session was interrupted. Resume it or start fresh?"
+- Run the project's existing test command (if detectable) to confirm the baseline is green. If tests fail before we start, flag it.
+
 ## Phase 0: Spec Review (Interactive Quality Gate)
 
 1. Locate the change directory. Search in priority order:
@@ -245,7 +255,11 @@ Steps:
 2. If there are setup_commands, run them first
 3. Check whether each spec scenario has a corresponding passing test
 4. If there are teardown_commands, run them
-5. Output STATUS: PASS or FAIL
+5. Output STATUS: PASS or FAIL, and CONFIDENCE: high/medium/low.
+
+**IMPORTANT: Regression check** — after running this task's verification_commands,
+also re-run verification_commands from ALL previously passed tasks in feature_tests.json.
+If any previously passing test now fails, report as FAIL with "REGRESSION" in the reason.
 ---
 
 **L4 tasks**:
@@ -283,7 +297,9 @@ Include the list of screenshot paths.
 
 ### 2c. Handle Evaluation Results
 
-**PASS**: Update feature_tests.json (passes=true), update claude-progress.txt, git commit, continue to the next task.
+**PASS (confidence: high/medium)**: Update feature_tests.json (passes=true), update claude-progress.txt, git commit, continue to the next task.
+
+**PASS (confidence: low)**: Tests pass but evaluator has concerns. Use AskUserQuestion: "Evaluator says PASS but with low confidence: {reason}. Accept and continue, or review manually?"
 
 **FAIL and attempts < 3**: Use the Task tool to launch a fixer subagent with the following prompt:
 

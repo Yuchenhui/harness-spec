@@ -33,4 +33,20 @@ Verify that implementation matches specs, design, and tasks.
    SUGGESTION: [nice to fix]
    ```
 
-7. If all clear: "Ready to archive. Run /harness:archive"
+7. **Lessons learned** (if evaluations/ directory exists):
+   Scan evaluation reports for patterns — what kept failing and how it was fixed.
+   Suggest rules the user might want to add to their CLAUDE.md:
+   ```
+   ## Lessons from this change
+
+   During implementation, the fixer had to fix:
+   - 2x IntegrityError not handled (duplicate email)
+   - 1x Missing auth middleware on /admin routes
+
+   Consider adding to your project's CLAUDE.md:
+     "Always handle database unique constraint errors with try/except"
+     "All /admin/* routes must have auth middleware"
+   ```
+   This is a suggestion — the user decides whether to add these rules.
+
+8. If all clear: "Ready to archive. Run /harness:archive"

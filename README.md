@@ -9,6 +9,10 @@ Verified, recoverable, self-healing AI-assisted development for Claude Code.
 
 ## What is this?
 
+> `AI Agent Output Quality = Model Capability + Harness Design`
+>
+> LangChain improved from rank 30+ to Top 5 by changing only their harness, not their model.
+
 A Claude Code plugin that adds **harness engineering** to your development workflow:
 
 - **Spec Review** — Interactive quality gate before coding (AskUserQuestion-driven)

@@ -131,7 +131,7 @@ Blocked: none
 这与 harness engineering 的评估循环天然契合：
 
 ```
-OpenSpec scenarios → 转化为测试 → Agent 编码使测试通过 → Evaluator 验证
+Spec scenarios → 转化为测试 → Agent 编码使测试通过 → Evaluator 验证
 ```
 
 **关键实践**:

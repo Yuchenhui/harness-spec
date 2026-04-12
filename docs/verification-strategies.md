@@ -21,7 +21,7 @@ Coding Agent 写测试代码  ──┤──→ Evaluator 跑测试 ──→ "
 **Initializer 阶段生成测试骨架**，而不是让 Coding Agent 自己写测试：
 
 ```
-OpenSpec specs.md (Given/When/Then)
+specs.md (Given/When/Then)
          ↓
     Initializer 生成
          ↓

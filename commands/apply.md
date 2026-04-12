@@ -172,7 +172,7 @@ For long-running unattended use, you have two options:
      - "Skip, do not address"
    ```
 
-5. **Based on user selections, write changes back to OpenSpec's specs.md to maintain a single source of truth.**
+5. **Based on user selections, write changes back to specs.md to maintain a single source of truth.**
 
    **Principle: specs.md is the sole source of spec data.** Review-approved modifications are written directly back to specs.md — no parallel files are created, avoiding gaps.
 

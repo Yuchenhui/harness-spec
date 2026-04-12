@@ -2,7 +2,7 @@
 
 ## 问题
 
-OpenSpec 生成的 specs.md 是给人读的：
+specs.md 是给人读的：
 
 ```markdown
 ## User Registration
@@ -21,7 +21,7 @@ pytest tests/api/test_auth.py::test_register_returns_201 -v
 ## 完整的材料生成链
 
 ```
-                    OpenSpec                          Initializer Agent
+                  harness-spec                        Initializer Agent
                 ┌─────────────┐                    ┌──────────────────────┐
 人的需求 ──────→│  proposal.md │                    │                      │
                 │  specs.md   │──────────────────→ │  读 specs + 项目结构   │
@@ -258,7 +258,7 @@ Insufficient:
 Recommendation: Update specs.md with specific, verifiable scenarios before proceeding.
 ```
 
-## 增强 OpenSpec Specs 的模板
+## 增强 Specs 的模板
 
 为了让 Initializer 生成高质量的材料，specs.md 中的每个 scenario 最好遵循这个模式：
 

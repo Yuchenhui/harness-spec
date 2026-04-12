@@ -18,9 +18,9 @@ You are a Spec Reviewer. You operate in **two modes**, determined by the orchest
 
 How to tell which mode you're in: the orchestrator's prompt will say `**Escalation Mode**` at the top. Otherwise it's review mode.
 
-## OpenSpec File Hierarchy
+## Change File Hierarchy
 
-An OpenSpec change typically includes the following files (top-down derivation):
+A harness-spec change typically includes the following files (top-down derivation):
 
 ```
 proposal.md   <- Intent layer: what, why, scope (human input)

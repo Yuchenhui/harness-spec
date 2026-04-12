@@ -1,8 +1,6 @@
 # Harness Spec
 
 > **⚠️ UNDER ACTIVE DEVELOPMENT — NOT READY FOR PRODUCTION USE**
->
-> **⚠️ NOT COMPATIBLE WITH OpenSpec projects.** Despite borrowing some concepts, harness-spec is an **independent** spec-driven workflow. It does not understand OpenSpec's delta spec format, uses a different directory layout (`changes/` not `openspec/changes/`), and `/harness:archive` does not merge deltas into baseline specs. Do not install both in the same project — see "Compatibility" below.
 
 An independent Claude Code plugin for **harness engineering** — spec-driven development with independent evaluation and auto-fix loops.
 
@@ -148,27 +146,9 @@ If you already have a project with existing tests, you can skip propose/review/i
 
 Then: `/harness:apply my-feature`
 
-## Compatibility
+## Interactive vs Headless
 
-### With OpenSpec — ❌ NOT COMPATIBLE
-
-harness-spec was originally inspired by OpenSpec but has diverged significantly:
-
-| Aspect | OpenSpec | harness-spec |
-|--------|----------|--------------|
-| Directory | `openspec/changes/` | `changes/` |
-| Specs | Multi-file `specs/<capability>/spec.md` | Single `specs.md` per change |
-| Delta format | ADDED/MODIFIED/REMOVED/RENAMED blocks | No delta concept |
-| Archive | Merges deltas into baseline specs | Just moves directory |
-| Validation | `openspec validate` schema | None (relies on evaluator) |
-
-**Do not install both in the same project.** If you have an OpenSpec project, harness-spec will create a parallel directory tree, ignore your delta specs, and break `openspec archive`.
-
-**Recommendation**: use harness-spec on new projects OR on projects without OpenSpec. If you want harness's evaluation loop on an OpenSpec project, only use `/harness:apply`, `/harness:verify`, `/harness:commit` — avoid the spec-editing commands (`/harness:propose`, `/harness:new`, `/harness:continue`, `/harness:review`, `/harness:archive`).
-
-### Interactive vs Headless
-
-Phase 0 (Spec Review) uses `AskUserQuestion` for interactive confirmation — it is **not headless**. Long-running unattended harness use should skip Phase 0 by pre-creating `feature_tests.json` and running `/harness:apply` in continue mode.
+Phase 0 (Spec Review) uses `AskUserQuestion` for interactive confirmation by default. Pass `--yes` for headless mode, or pre-create `feature_tests.json` to skip Phase 0 entirely.
 
 ## How It Works
 

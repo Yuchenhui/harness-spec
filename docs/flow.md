@@ -85,8 +85,8 @@
 | 步骤 | 谁做 | 你做什么 |
 |------|------|---------|
 | `/harness:propose` | 你 | 输入需求描述 |
-| `/harness:continue` | OpenSpec | 无 |
-| `/harness:continue` | OpenSpec | 无 |
+| `/harness:continue` | harness-spec | 无 |
+| `/harness:continue` | harness-spec | 无 |
 | `/project:harness-apply` | 你 | 输入这一个命令 |
 | Phase 0: Spec Review | Reviewer + 你 | **选选择题**（接受/跳过/自己改） |
 | Phase 1: Initializer | 自动 | 无 |

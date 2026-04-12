@@ -250,14 +250,19 @@ For long-running unattended use, you have two options:
 
    Please:
    1. Read specs.md (already reviewed and strengthened in Phase 0) and tasks.md
-   2. Check the project tech stack (package.json / requirements.txt / go.mod)
-   3. Determine verification_level (L1-L5) for each task
-   4. Generate feature_tests.json
-   5. Generate test skeleton files for L2/L3 tasks (with real assertions, not empty shells)
-   6. Generate API contract files for L3 tasks (optional)
-   7. Generate browser scenario files for L4 tasks
-   8. Generate necessary conftest/fixtures
-   9. Report spec coverage and any quality issues
+   2. Also read design.md if it exists — extract design constraints for rubric criteria
+   3. Check the project tech stack (package.json / requirements.txt / go.mod)
+   4. Determine verification_level (L1-L5) for each task
+   5. Generate feature_tests.json — **including `evaluation_rubric` for every task**
+      Each rubric should contain per-criterion entries derived from:
+      - spec scenarios (the Given/When/Then conditions → one criterion each)
+      - design constraints (e.g., "passwords use bcrypt" → criterion)
+      - obvious edge cases (e.g., "empty input returns 422 not 500" → criterion)
+   6. Generate test skeleton files for L2/L3 tasks (with real assertions, not empty shells)
+   7. Generate API contract files for L3 tasks (optional)
+   8. Generate browser scenario files for L4 tasks
+   9. Generate necessary conftest/fixtures
+   10. Report spec coverage and any quality issues
    ---
 
 4. After the Initializer finishes, validate the generated material:
@@ -334,13 +339,16 @@ Verification level: {verification_level}
 Spec Scenarios:
 {list spec_scenarios}
 
+Evaluation rubric (score each criterion independently as PASS/FAIL):
+{list evaluation_rubric from feature_tests.json — one criterion per line}
+
 Steps:
-1. For each verification command, run it prefixed with `cd {WORKTREE_PATH} &&`
+1. If there are setup_commands, run them first (prefixed with cd)
+2. For each verification command, run it prefixed with `cd {WORKTREE_PATH} &&`
    Example: `cd {WORKTREE_PATH} && pytest tests/test_auth.py -v`
-2. If there are setup_commands, run them first (also prefixed with cd)
-3. Check whether each spec scenario has a corresponding passing test
+3. For each rubric criterion, determine PASS or FAIL based on test output
 4. If there are teardown_commands, run them
-5. Output STATUS, SCORE (0-5), LEVEL, RESULTS per the format in your system prompt.
+5. Output STATUS, SCORE (0-5), LEVEL, CRITERIA (per-criterion breakdown), RESULTS per the format in your system prompt.
 
 **IMPORTANT: Regression check** — after running this task's verification_commands,
 also re-run verification_commands from ALL previously passed tasks in feature_tests.json
@@ -357,6 +365,9 @@ WORKING DIRECTORY: {WORKTREE_PATH}
 
 Task: {id} - {description}
 
+Evaluation rubric (score each criterion independently as PASS/FAIL):
+{list evaluation_rubric from feature_tests.json — one criterion per line}
+
 First run setup_commands from the worktree: `cd {WORKTREE_PATH} && {setup_commands}`
 
 Then use Playwright browser tools to test according to the following scenarios:
@@ -364,12 +375,12 @@ Then use Playwright browser tools to test according to the following scenarios:
 
 For each scenario:
 1. Follow the steps sequentially
-2. Check assertions
+2. Check assertions against rubric criteria
 3. Take screenshots at key steps
 
 After completion, run teardown_commands: `cd {WORKTREE_PATH} && {teardown_commands}`
 
-Output STATUS, SCORE, LEVEL, RESULTS per the format in your system prompt.
+Output STATUS, SCORE, LEVEL, CRITERIA (per-criterion breakdown), RESULTS per the format in your system prompt.
 ---
 
 **L5 tasks**:

@@ -8,7 +8,7 @@
       "name": "harness",
       "source": "./",
       "description": "Harness engineering for Claude Code — independent evaluation, auto-fix loops, cross-session recovery.",
-      "version": "0.8.0"
+      "version": "0.9.0"
     }
   ]
 }

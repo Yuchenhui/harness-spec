@@ -38,6 +38,13 @@ Fill in complete verification information for each task:
   "setup_commands": ["If services need to be started"],
   "teardown_commands": ["If services need to be stopped"],
   "browser_verification": { "If L4/L5" },
+  "evaluation_rubric": [
+    {
+      "criterion": "Short name for the criterion",
+      "description": "What specifically to check — derived from spec scenario + design constraint",
+      "source": "spec_scenario | design_constraint | edge_case"
+    }
+  ],
   "passes": false,
   "evaluation_attempts": 0
 }
@@ -204,6 +211,11 @@ async def existing_user(client):
 4. **Follow the project's existing style** — read existing test files and follow the same fixtures, naming, and import conventions
 5. **Coverage must be complete** — every scenario in specs.md must have at least one corresponding test
 6. **Edge cases** — in addition to scenarios explicitly listed in specs, also generate tests for obvious edge cases (empty input, excessively long input, special characters, etc.)
+7. **Every task must have an evaluation_rubric** — derive criteria from spec scenarios + design constraints. The evaluator scores each criterion independently. Good criteria are specific and gradeable:
+   - Good: `"POST /auth/register returns 201 with user_id in body"`
+   - Bad: `"Registration works correctly"`
+   - Include criteria from design.md constraints (e.g., `"Passwords stored with bcrypt, not plaintext"`)
+   - Include edge case criteria even if no explicit spec scenario (e.g., `"Empty email returns 422, not 500"`)
 
 ## Output Format
 

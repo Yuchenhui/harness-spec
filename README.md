@@ -44,15 +44,15 @@ That's it. Hooks auto-load, agents auto-register. Works on **Windows, macOS, and
 ### Manual Install (alternative)
 
 ```bash
-git clone -b plugin https://github.com/yuchenhui/harness-spec.git /tmp/harness-spec
+git clone https://github.com/yuchenhui/harness-spec.git /tmp/harness-spec
 
 # Copy to your project
 mkdir -p .claude/agents .claude/commands .claude/hooks
-cp /tmp/harness-spec/agents/*.md .claude/agents/
-cp /tmp/harness-spec/commands/*.md .claude/commands/
-cp /tmp/harness-spec/hooks/*.js .claude/hooks/
+cp /tmp/harness-spec/plugins/harness/agents/*.md .claude/agents/
+cp /tmp/harness-spec/plugins/harness/commands/*.md .claude/commands/
+cp /tmp/harness-spec/plugins/harness/hooks/*.js .claude/hooks/
 
-# Merge hooks into your settings.json manually (see hooks/hooks.json)
+# Merge hooks into your settings.json manually (see plugins/harness/hooks/hooks.json)
 ```
 
 ### Local Plugin (development/testing)

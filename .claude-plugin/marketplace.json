@@ -6,7 +6,10 @@
   "plugins": [
     {
       "name": "harness",
-      "source": "./",
+      "source": {
+        "source": "github",
+        "repo": "yuchenhui/harness-spec"
+      },
       "description": "Harness engineering for Claude Code — independent evaluation, auto-fix loops, cross-session recovery.",
       "version": "0.9.0"
     }

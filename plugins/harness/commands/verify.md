@@ -13,28 +13,39 @@ Verify that an implementation matches its specs, design, and tasks. Final gate b
 1. Find `changes/<name>/` at the repo root. If `$ARGUMENTS` is empty, auto-detect the most recently-modified active change under `changes/` (ignoring `openspec/changes/`) or use **AskUserQuestion** to pick.
 2. Read all artifacts: `proposal.md`, `specs.md`, `design.md` (if present), `tasks.md`, `feature_tests.json` (if present).
 
-### 2. Completeness — checklist audit
+### 2. Schema compliance — Layer 1 validator (pre-flight, blocking)
+
+Run the schema validator as the first dimension of verification:
+```bash
+node ${CLAUDE_PLUGIN_ROOT}/scripts/validate.js changes/$ARGUMENTS --json
+```
+- Parse the JSON result.
+- **If errors > 0**: this is a CRITICAL issue. Flag every error in the final report. Verify fails regardless of other dimensions — the change cannot be archived with a structurally broken set of artifacts.
+- **If only warnings**: include them in the final report under WARNING but do not block archiving.
+- **If clean**: record "Schema: clean" and proceed.
+
+### 3. Completeness — checklist audit
 
 Parse `tasks.md` for checkboxes (`- [ ]` vs `- [x]`).
 - Count complete vs total.
 - List any unchecked tasks by ID.
 - If `feature_tests.json` exists, cross-check: every task should have either `passes: true` OR a checked checkbox with explanation in commits.
 
-### 3. Correctness — code evidence
+### 4. Correctness — code evidence
 
 For each `### Requirement` in specs.md:
 - Search the codebase (via Glob/Grep) for implementation evidence using keywords from the scenario
 - Check if tests exist covering each scenario (look in test files for scenario keywords)
 - Flag any requirement with no evidence of implementation OR no test coverage
 
-### 4. Coherence — design alignment
+### 5. Coherence — design alignment
 
 If `design.md` exists:
 - Read each **Decision** section
 - For each decision, search the code for evidence the decision was followed
 - Flag decisions that appear to have been ignored or reversed without explanation
 
-### 5. Harness verification — run the tests
+### 6. Harness verification — run the tests
 
 If `feature_tests.json` exists:
 1. Run every `verification_commands` entry from every task
@@ -42,7 +53,7 @@ If `feature_tests.json` exists:
 3. Check `passes: true` on every task. If any `false`, this verify fails.
 4. If `evaluation_rubric` is present, also verify each criterion passes (re-using the rubric from feature_tests.json).
 
-### 6. Specialist review (delegate)
+### 7. Specialist review (delegate)
 
 Always launch **`@quality-engineer`** with this prompt:
 
@@ -72,7 +83,7 @@ Do not fix anything — produce a structured report only:
 
 Wait for all launched agents to return before proceeding.
 
-### 7. Lessons learned (if evaluations/ dir exists)
+### 8. Lessons learned (if evaluations/ dir exists)
 
 If `changes/<name>/evaluations/` has evaluator reports from the apply loop, scan them for recurring fix patterns and suggest rules for the user's CLAUDE.md. Example:
 
@@ -90,13 +101,14 @@ Suggested rules for CLAUDE.md (optional — user decides):
 
 This is a suggestion only. Never auto-edit CLAUDE.md.
 
-### 8. Generate the final report
+### 9. Generate the final report
 
 ```markdown
 ## Verification Report: <name>
 
 | Dimension    | Status                                 |
 |--------------|----------------------------------------|
+| Schema       | clean / N errors / N warnings          |
 | Completeness | X/Y tasks done                         |
 | Correctness  | M/N specs covered with tests           |
 | Coherence    | Followed / N decisions violated        |
@@ -118,7 +130,7 @@ This is a suggestion only. Never auto-edit CLAUDE.md.
 - ...
 ```
 
-### 9. Next action
+### 10. Next action
 
 - If CRITICAL is empty → "Ready to archive. Run `/harness:archive <name>`"
 - If CRITICAL has items → "Verification failed. Fix the critical items first, then re-run `/harness:verify`"
@@ -128,8 +140,9 @@ This is a suggestion only. Never auto-edit CLAUDE.md.
 
 ## Rules
 
+- **Schema compliance (Step 2) is blocking.** If validate.js reports errors, verify fails regardless of other dimensions.
 - **Always launch @quality-engineer.** This is the non-negotiable baseline.
-- **Launch @security-engineer and @performance-engineer conditionally** based on change content detection (see Step 6).
+- **Launch @security-engineer and @performance-engineer conditionally** based on change content detection (see Step 7).
 - **Never modify code during verify.** Read-only audit.
 - **Never auto-edit CLAUDE.md.** Lessons are suggestions only.
 - **The Harness dimension is blocking.** If feature_tests.json shows failures, verify fails regardless of other dimensions.

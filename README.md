@@ -66,12 +66,13 @@ git clone -b plugin https://github.com/yuchenhui/harness-spec.git ~/harness-spec
 ## What You Get
 
 ```
-9 commands (/harness:*):
+11 commands (/harness:*):
   /harness:propose      — Create a change with all artifacts in one step
   /harness:explore      — Think through ideas without implementing
   /harness:new          — Create a change directory (step-by-step mode)
   /harness:continue     — Build the next artifact for a change
-  /harness:review       — Interactive spec quality review (Phase 0)
+  /harness:validate     — Schema validation (fast, deterministic, LLM-free)
+  /harness:review       — Content quality review via spec-reviewer agent
   /harness:init-tests   — Generate tests from specs — TDD (Phase 1)
   /harness:apply        — Code → Evaluate → Fix loop (Phase 2)
   /harness:verify       — Verify implementation matches specs
@@ -200,6 +201,62 @@ Phase 0 (Spec Review) uses `AskUserQuestion` for interactive confirmation by def
 | **Decoupled fixer** | Fixer re-runs failing tests itself, not evaluator's interpretation | Fixer forms independent diagnosis from raw test output, not from evaluator's ROOT CAUSE analysis |
 | **Compaction Safety** | PreCompact hook saves progress to `claude-progress.txt` | Long sessions survive context compression |
 | **Dormant-by-default** | All hooks check `.claude/harness-active` state file | Zero impact on normal Claude Code usage |
+| **Two-layer document compliance** | Layer 1 schema validator (`scripts/validate.js`) + Layer 2 spec-reviewer agent | Mechanical structure errors caught in milliseconds; content quality checked by LLM. See below. |
+
+## Document compliance
+
+harness-spec uses a **two-layer compliance strategy**. LLM-only validation is slow and non-deterministic; pure-schema validation misses content quality. We do both.
+
+### Layer 1: Schema validation (fast, deterministic, LLM-free)
+
+`plugins/harness/scripts/validate.js` — pure Node.js, zero dependencies, milliseconds to run.
+
+Checks performed:
+
+| File | Checks |
+|---|---|
+| `proposal.md` | required sections (Classification, Why, What Changes, Impact, Alignment); Classification value must be Frontend/Backend/Full-stack/Infra/Cross-cutting; conditional sections (User experience for frontend, API & data for backend); warns on missing Specialist input / Research / Open questions |
+| `specs.md` | ≥1 `### Requirement:`, every Requirement has ≥1 `#### Scenario:`, every Scenario has **Given** / **When** / **Then**; warns on vague placeholders and missing SHALL/MUST |
+| `design.md` | Context / Decisions sections required; warns on missing Goals / Risks |
+| `tasks.md` | ≥1 checkbox task; warns on missing numbered groups |
+| `feature_tests.json` | valid JSON; each task has id/description/spec_scenarios/verification_commands/verification_level/passes; verification_level ∈ {L1..L5}; warns if evaluation_rubric missing |
+| cross-references | warns if `feature_tests.json` references scenario names not found in `specs.md` |
+
+Run it directly:
+```bash
+node plugins/harness/scripts/validate.js changes/<change-id>
+node plugins/harness/scripts/validate.js changes/<change-id> --json   # structured
+```
+
+Or via the slash command (auto-detects the change):
+```
+/harness:validate
+```
+
+### Layer 2: Content quality review (slow, LLM-based)
+
+`spec-reviewer` agent (opus) — reads the full change file chain and outputs a structured JSON report with quality_score, design_gaps, vague scenario suggestions, missing error/edge cases, etc. See `agents/spec-reviewer.md`.
+
+Run via:
+```
+/harness:review
+```
+
+### Integration points
+
+| Command | Layer 1 | Layer 2 | Notes |
+|---|---|---|---|
+| `/harness:validate` | ✓ | — | Layer 1 only — fast manual check |
+| `/harness:review` | ✓ (pre-check, blocking) | ✓ | Layer 1 first, stops if errors; then Layer 2 content review |
+| `/harness:apply` | ✓ (pre-flight, blocking) | ✓ (Phase 0) | Layer 1 in pre-flight, then spec-reviewer in Phase 0 |
+| `/harness:verify` | ✓ (blocking) | — | Layer 1 as one dimension alongside Completeness/Correctness/Coherence/Harness/Quality |
+
+### Design rationale
+
+- **Layer 1 is deterministic** — same input always produces same output. Easy to reason about, easy to CI-hook, zero API cost.
+- **Layer 2 is subjective** — "is this scenario specific enough?" is an LLM judgment. Expensive but irreplaceable.
+- **Layer 1 runs first** — if Layer 1 fails, Layer 2 is skipped to avoid wasting an opus call on structurally broken files.
+- **No OpenSpec dependency** — we use our own schemas tailored to harness-spec's file formats. The `validate.js` script has zero external dependencies beyond Node.js stdlib.
 
 ## Documentation
 

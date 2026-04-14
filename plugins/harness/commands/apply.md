@@ -21,11 +21,13 @@ Before anything else, quickly verify the project is in a healthy state:
 ```bash
 git status --short
 node ${CLAUDE_PLUGIN_ROOT}/scripts/worktree.js prune
+node ${CLAUDE_PLUGIN_ROOT}/scripts/validate.js changes/$ARGUMENTS --json
 ```
 - If there are uncommitted changes: warn the user "Uncommitted changes detected. Commit or stash before starting harness."
 - If a previous `.claude/harness-active` exists: ask "A previous harness session was interrupted. Resume it or start fresh?"
 - Run the project's existing test command (if detectable) to confirm the baseline is green. If tests fail before we start, flag it.
 - `worktree.js prune` cleans up any orphan evaluation worktrees from previous runs.
+- **`validate.js` is the Layer 1 schema check** (fast, deterministic). If it exits non-zero (errors found), STOP and present the errors to the user via AskUserQuestion: "Schema validation failed with N errors. Fix them now, or abort?" Do NOT proceed to Phase 0 until validation passes — otherwise spec-reviewer will waste time on LLM review of malformed files. Warnings are non-blocking and can be carried into Phase 0.
 
 ## Phase 0: Spec Review (Interactive Quality Gate)
 

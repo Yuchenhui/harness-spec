@@ -30,11 +30,18 @@ Find the first one missing. That's the target.
 
 ## Step 3: Discovery before generation
 
-Even in continue mode, never skip discovery. But the scope of discovery depends on what you already have:
+Even in continue mode, never skip discovery. But the scope depends on what you already have:
 
-- **If proposal.md exists**: you already have most of the context. Skim it, note the scope, note the domain.
-- **If Phase 0-style research was already done** (look for "Research & references" section in proposal.md): trust it, but still read relevant code via `Glob` + `Grep` for the specific artifact you're about to generate.
+- **If proposal.md exists**: you already have most of the context. Skim it, note the scope, note the **Classification** section (Frontend / Backend / Full-stack / Infra / Cross-cutting).
+- **If Phase 0-style research was already done** (look for "Research & references" section): trust it, but still read relevant code via `Glob` + `Grep` for the specific artifact you're about to generate.
 - **If research is thin**: launch a narrow **Explore subagent** or `@deep-research-agent` to fill the gap BEFORE generating. Don't draft without grounding.
+
+**If the proposal has NO Classification section** (older proposal created before Phase 1.5 existed): infer the classification from the content. If ambiguous, use **AskUserQuestion** to confirm with the user before proceeding. Write the classification into the proposal before advancing — specs and design need it.
+
+**The classification drives everything downstream**:
+- Frontend/Full-stack → specs MUST cover UI scenarios (error/empty/loading/success states, accessibility, responsive)
+- Backend/Full-stack → specs MUST cover API contracts, error responses, auth/authz, performance bounds
+- Design phase will pull in different specialists based on classification
 
 ---
 
@@ -47,6 +54,8 @@ Delegate to **`@requirements-analyst`** with this prompt:
 ---
 Read `changes/<name>/proposal.md` for scope and context. Generate a complete `specs.md` in Given/When/Then format.
 
+Classification (from proposal): <classification>
+
 Required:
 - Each requirement as `### Requirement: <name>` with at least one `#### Scenario`
 - WHEN/THEN with concrete values (not "valid data" — actual values like 'test@example.com')
@@ -55,23 +64,54 @@ Required:
 - Every design decision from proposal must have a corresponding verifiable scenario
 - If the proposal references best practices or external standards, make those scenarios too
 
+**Domain-specific coverage requirements based on classification**:
+
+If **Frontend** or **Full-stack**: every user-facing feature MUST have scenarios covering:
+  - Entry point / initial state
+  - Happy path interaction
+  - Error state (validation errors, network failures)
+  - Empty state (no data yet, filter returns nothing)
+  - Loading state (with latency threshold if relevant)
+  - Success feedback (toast, redirect, inline confirmation)
+  - Keyboard navigation (where relevant)
+  - Responsive behavior (if mobile matters)
+  - Missing any of these is a spec quality issue.
+
+If **Backend** or **Full-stack**: every API endpoint MUST have scenarios covering:
+  - Happy path (valid input, expected output)
+  - Input validation errors (4xx responses)
+  - Auth / authz failures (401 / 403)
+  - Rate limiting or throttling (if applicable)
+  - Performance bounds (if specified in proposal)
+  - Observability (log entries, metrics emitted)
+  - Backward compat (if proposal flags breaking changes)
+  - Missing any of these for a non-trivial endpoint is a spec quality issue.
+
+If **Infra / DevOps**: scenarios MUST cover:
+  - Rollback procedure works as documented
+  - Monitoring/alert fires on the documented conditions
+  - Secrets are not leaked in logs/errors
+
 Output the full specs.md content. Do not write the file yourself — the orchestrator will handle that.
 ---
 
-When the analyst returns, review the draft yourself for obvious gaps, then proceed to Step 5.
+When the analyst returns, review the draft yourself for obvious gaps against the classification checklist, then proceed to Step 5.
 
 ### Target = design.md
 
-Pick the right architect based on the domain (infer from proposal.md):
+Pick specialists based on the **Classification** field in proposal.md (set in Phase 1.5 of new/propose). Launch relevant specialists **in parallel** — multiple specialists can contribute to one design:
 
-| Domain signal in proposal | Specialist |
+| Classification | Specialists to launch in parallel |
 |---|---|
-| API, database, server, backend service | `@backend-architect` |
-| UI, component, page, form, state management | `@frontend-architect` |
-| Cross-cutting, multi-subsystem, architecture decisions, tech stack choice | `@system-architect` |
-| DevOps, infra, CI/CD, deployment | `@devops-architect` |
-| Security-sensitive (auth, crypto, payments, PII) | `@backend-architect` **AND** `@security-engineer` for review |
-| Performance-critical (caching, throughput, latency) | `@backend-architect` **AND** `@performance-engineer` |
+| Frontend only | `@frontend-architect` + `@ui-ux-designer` |
+| Backend only | `@backend-architect` |
+| Full-stack | `@frontend-architect` + `@ui-ux-designer` + `@backend-architect` + `@system-architect` |
+| Infra / DevOps | `@devops-architect` |
+| Cross-cutting | `@system-architect` + relevant domain specialists |
+| **Overlay** | |
+| + auth / crypto / PII / payments / permissions | add `@security-engineer` |
+| + performance-critical (caching, throughput, latency, queries, concurrency) | add `@performance-engineer` |
+| + heavy testing / CI concerns | add `@quality-engineer` |
 
 Delegate with this prompt:
 

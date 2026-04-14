@@ -94,12 +94,130 @@ Proceed directly, but do ONE sanity check against Phase 0: does the requirement 
 
 ---
 
+## Phase 1.5: Classify domain & surface concerns (REQUIRED — never skip)
+
+Before drafting, actively classify what kind of change this is and walk the user through the **domain-specific concerns** they probably haven't thought about yet. This is the step that prevents "I asked for an auth endpoint and got a proposal with no mention of error UI states" kinds of failures.
+
+### Step A — Classify
+
+Pick one (or more, if full-stack) based on Phase 0 + Phase 1 signals. If ambiguous, use **AskUserQuestion**:
+
+```
+Question: "What kind of change is this?"
+Options (multiSelect allowed):
+  - "Frontend — UI, component, page, form, interaction, visual"
+  - "Backend — API, database, service, cron/job, integration"
+  - "Full-stack — crosses UI ↔ server boundary"
+  - "Infra / DevOps — CI/CD, deploy, env, monitoring, tooling"
+  - "Cross-cutting — auth, permissions, i18n, shared library, refactor"
+```
+
+Record the classification — you'll use it to gate Step B and Step C.
+
+### Step B — Walk through domain-specific concerns via AskUserQuestion
+
+**DO NOT SKIP THIS.** These are the concerns most users forget to mention when describing a change. Ask them explicitly, in the domain relevant to the classification. Use AskUserQuestion with multi-select or sequential prompts. Accept "not applicable" / "skip" as valid answers — the point is that the orchestrator _asked_, not that every item gets a detailed answer.
+
+#### If classification includes **Frontend** or **Full-stack**:
+
+Walk through these with AskUserQuestion (batch 3-5 at a time, not one by one):
+
+- **User & device** — who's the user? Device context? Desktop / mobile / both?
+- **Entry point** — where does the user enter this flow? (nav link, modal, deep link, etc.)
+- **Happy-path flow** — describe it step by step from user's POV
+- **Error states** — what can go wrong from the user's POV? How should it be shown?
+- **Empty states** — first-time user / no data yet / filter returns nothing
+- **Loading states** — spinner / skeleton / optimistic UI / what duration counts as "slow"
+- **Success feedback** — toast / redirect / inline confirmation / nothing
+- **Visual design source** — reuse existing design system, Figma link, or new design needed
+- **Accessibility** — keyboard nav requirements, screen reader needs, WCAG target
+- **Responsive behavior** — breakpoints, mobile-only differences, touch vs mouse
+- **i18n / l10n** — does copy need translation? RTL layout?
+
+If the user says "I don't know" to visual design or flow details, offer: *"Should I launch **`@ui-ux-designer`** to propose a flow and we iterate on that?"* Launch it when they agree.
+
+#### If classification includes **Backend** or **Full-stack**:
+
+Walk through via AskUserQuestion (batch):
+
+- **API contract** — REST / GraphQL / RPC / internal only? Verb, path, request/response shape
+- **Data model** — new tables/columns? Migrations? Indexes? Constraints?
+- **Transactional requirements** — atomicity needed? Across what boundary?
+- **Consistency model** — strong / eventual / best-effort
+- **Performance** — expected load, latency target, p99 budget
+- **Caching** — needed? invalidation strategy? TTL?
+- **Security** — auth required? authz rules? PII? rate limiting? input validation?
+- **Observability** — what to log, what metrics to expose, what alerts
+- **Backward compatibility** — is this a breaking change? Deprecation plan?
+- **Background work** — any queues, jobs, scheduled tasks, retries, DLQ?
+
+#### If classification includes **Infra / DevOps**:
+
+- **Environments affected** — dev / staging / prod
+- **Rollback plan** — how to revert, how fast
+- **Monitoring / alerting** — what to watch after rollout
+- **Secrets** — new secrets? rotation? where stored?
+- **Cost implications** — additional infra cost?
+- **Downtime** — any? maintenance window?
+
+#### If classification includes **Cross-cutting**:
+
+- **Scope** — which subsystems/modules affected (list them)
+- **Migration path** — gradual rollout or flag day?
+- **Feature flag** — needed? which system (LaunchDarkly / env var / custom)?
+- **Backward compat** — deprecate old path first, or break immediately?
+- **Docs impact** — CLAUDE.md / README / API docs need updates?
+
+### Step C — Proactive specialist invocation (parallel)
+
+Based on the classification, **launch the relevant specialist agents in parallel** to enrich the draft with domain expertise. They run read-only and return "concerns / references / pitfalls" — they don't draft the proposal themselves.
+
+| Classification | Specialists to invoke in parallel |
+|---|---|
+| Frontend only | `@frontend-architect` + `@ui-ux-designer` |
+| Backend only | `@backend-architect` |
+| Full-stack | `@frontend-architect` + `@ui-ux-designer` + `@backend-architect` + `@system-architect` |
+| Infra / DevOps | `@devops-architect` |
+| Cross-cutting | `@system-architect` + relevant domain specialists |
+| **Overlay** (add on top of above) | |
+| Touches auth / crypto / PII / payments / permissions | `+ @security-engineer` |
+| Performance-critical (caching, throughput, latency, queries, concurrency) | `+ @performance-engineer` |
+| Quality / testability concerns | `+ @quality-engineer` |
+
+Prompt each with:
+
+```
+You are being asked for early-phase concerns on a change under consideration.
+It has NOT been designed yet — we're drafting the proposal.
+
+Change: <name>
+User's description: <user's words>
+Classification: <frontend/backend/...>
+Project summary: <Phase 0 memo>
+
+Please return in under 300 words:
+1. Top 3-5 concerns I should flag in the proposal
+2. Any existing code/patterns you know about that this should align with
+3. Known pitfalls in this domain I should avoid
+4. Anything the user probably didn't think to mention
+
+Do NOT draft the proposal. Do NOT write any files. Advisory only.
+```
+
+Wait for their responses (they run in parallel, so you wait for the slowest). Merge their concerns into your Phase 2 draft.
+
+---
+
 ## Phase 2: Draft the proposal (in memory — do NOT write the file yet)
 
 Write a proposal that **reflects Phase 0 + Phase 1** findings. Required sections:
 
 ```markdown
 # Proposal: <change-name>
+
+## Classification
+**<Frontend / Backend / Full-stack / Infra / Cross-cutting>**
+(from Phase 1.5)
 
 ## Why
 [The problem, grounded in what the project actually does.
@@ -109,28 +227,50 @@ Write a proposal that **reflects Phase 0 + Phase 1** findings. Required sections
 - [Specific change, referencing existing modules/files when relevant]
 - [Another change]
 
+## User experience (Frontend / Full-stack only)
+[Walk the reader through the user's journey.
+ Cover: entry point, happy path, error states, empty states, loading, success feedback.
+ Include device/responsive notes and accessibility requirements.
+ Reference existing design system if applicable.]
+
+## API & data (Backend / Full-stack only)
+[API contract (verb + path + shape), data model changes, migrations,
+ transactional requirements, performance targets, auth/authz rules.]
+
 ## Impact
 - **Affected code**: [files/modules that will change — use real paths from Phase 0]
 - **APIs**: [what changes for callers]
 - **Dependencies**: [new deps, if any]
+- **Backward compatibility**: [breaking? deprecation plan?]
 
 ## Alignment with project
 [How it fits the existing architecture — reference patterns you saw in Phase 0.
  If it doesn't fit cleanly, say so here.]
 
+## Specialist input
+[Bullet list summarizing what each specialist agent returned in Phase 1.5 Step C.
+ Format: "- @<agent>: <1-2 sentence summary of their top concern>"
+ Example: "- @ui-ux-designer: error state needs inline, not toast, so user can correct in place"
+ Example: "- @backend-architect: existing auth uses express-session — don't add a parallel JWT path"]
+
 ## Research & references
 [2-5 bullet points citing what Phase 0 found externally.
  Format: "- <claim>: <source URL or agent name>"
  Example: "- JWT rotation: OWASP Session Management Cheat Sheet (owasp.org/...)"
- Example: "- Rate limiting via token bucket: Stripe engineering blog (stripe.com/...)"
- Empty only if 0c was genuinely inapplicable.]
+ Empty only if Phase 0c was genuinely inapplicable.]
 
 ## Open questions
-[Anything unresolved from Phase 1 that needs a decision before specs.
+[Anything unresolved from Phase 1 or 1.5 that needs a decision before specs.
  Empty if everything is clear.]
 ```
 
-**Quality bar**: a good proposal has **3-5 concrete references to existing code** AND **2-5 external references** (when applicable). If either is zero without a good reason, Phase 0 wasn't thorough — go back and research more.
+**Quality bar**: a good proposal has
+- **3-5 concrete references to existing code** (Phase 0b findings)
+- **2-5 external references** when applicable (Phase 0c findings)
+- **Specialist input** from at least 1 agent (Phase 1.5 Step C)
+- **Domain-specific section filled in** (UX section for frontend/full-stack, API section for backend/full-stack) — not left empty with "TBD"
+
+If any of these are missing without a good reason, go back and complete the relevant phase.
 
 ---
 

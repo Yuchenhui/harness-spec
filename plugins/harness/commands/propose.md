@@ -68,12 +68,82 @@ Proceed. But sanity-check against Phase 0 — does it conflict with the existing
 
 ---
 
+## Phase 1.5: Classify domain & surface concerns (REQUIRED — never skip)
+
+Same procedure as `/harness:new` Phase 1.5. Three steps:
+
+### Step A — Classify
+
+AskUserQuestion if ambiguous, or infer from Phase 0/1 signals:
+- **Frontend** / **Backend** / **Full-stack** / **Infra/DevOps** / **Cross-cutting**
+(multi-select allowed; full-stack + cross-cutting are valid combinations)
+
+### Step B — Walk domain-specific concerns via AskUserQuestion
+
+For each classification, ask the user to fill the relevant gaps. Batch 3-5 questions at a time via AskUserQuestion, not one by one. Accept "skip" / "not applicable" as valid answers.
+
+**Frontend / Full-stack (frontend side)**:
+user & device, entry point, happy-path flow, error states, empty states, loading states, success feedback, visual design source, accessibility, responsive behavior, i18n.
+
+If the user can't answer visual/UX questions confidently, offer: *"Should I launch `@ui-ux-designer` to propose a flow?"*
+
+**Backend / Full-stack (backend side)**:
+API contract (verb/path/shape), data model & migrations, transactional requirements, consistency model, performance targets, caching, security (auth, authz, PII, rate limiting), observability, backward compatibility, background work.
+
+**Infra / DevOps**:
+environments, rollback plan, monitoring/alerting, secrets handling, cost implications, downtime/maintenance window.
+
+**Cross-cutting**:
+scope (list affected subsystems), migration path, feature flag, backward compatibility, docs impact.
+
+### Step C — Proactive specialist invocation (parallel)
+
+Launch the relevant specialists **in parallel** for early advisory input:
+
+| Classification | Specialists |
+|---|---|
+| Frontend only | `@frontend-architect` + `@ui-ux-designer` |
+| Backend only | `@backend-architect` |
+| Full-stack | `@frontend-architect` + `@ui-ux-designer` + `@backend-architect` + `@system-architect` |
+| Infra / DevOps | `@devops-architect` |
+| Cross-cutting | `@system-architect` + relevant domain specialists |
+| **+ auth/crypto/PII/payments** | add `@security-engineer` |
+| **+ performance-critical** | add `@performance-engineer` |
+| **+ quality/testability focus** | add `@quality-engineer` |
+
+Each specialist gets this prompt template:
+
+```
+You are being asked for early-phase concerns on a change under consideration.
+It has NOT been designed yet — we're drafting the proposal.
+
+Change: <name>
+User's description: <user's words>
+Classification: <classification>
+Project summary: <Phase 0 memo>
+
+Please return in under 300 words:
+1. Top 3-5 concerns I should flag in the proposal
+2. Existing code/patterns this should align with
+3. Known pitfalls in this domain
+4. Anything the user probably didn't think to mention
+
+Do NOT draft files. Advisory only.
+```
+
+Run all specialists in parallel and wait for their reports. Merge their concerns into Phase 2.
+
+---
+
 ## Phase 2: Draft proposal.md
 
-Same structure as `/harness:new` Phase 2:
+Reflect Phase 0 + Phase 1 + Phase 1.5 findings. Full template:
 
 ```markdown
 # Proposal: <name>
+
+## Classification
+**<Frontend / Backend / Full-stack / Infra / Cross-cutting>**
 
 ## Why
 [Concrete problem grounded in what the project does]
@@ -81,17 +151,35 @@ Same structure as `/harness:new` Phase 2:
 ## What Changes
 - [Referencing existing modules]
 
+## User experience (Frontend / Full-stack only)
+[Entry point, happy path, error/empty/loading states, success feedback,
+ device/responsive notes, accessibility requirements]
+
+## API & data (Backend / Full-stack only)
+[API contract (verb + path + shape), data model changes, migrations,
+ transactional requirements, performance targets, auth/authz rules]
+
 ## Impact
 - **Affected code**:
 - **APIs**:
 - **Dependencies**:
+- **Backward compatibility**:
 
 ## Alignment with project
 [How it fits existing architecture]
 
+## Specialist input
+[Summary of what each Phase 1.5 specialist returned.
+ Format: "- @<agent>: <their top concern>"]
+
+## Research & references
+[External sources cited from Phase 0c]
+
 ## Open questions
 [Unresolved items — these will inform specs/design decisions]
 ```
+
+**Quality bar**: domain-specific section (UX or API&data) must be filled in, not "TBD". Specialist input section must have at least one entry.
 
 **Review gate**: Show the draft. AskUserQuestion:
 - "Looks good, proceed to specs"
@@ -104,9 +192,9 @@ Do NOT advance to Phase 3 until approved.
 
 ## Phase 3: Draft specs.md (Given/When/Then scenarios)
 
-**Delegate this phase** unless the requirement is trivial:
-- Launch **`@requirements-analyst` subagent** with the approved proposal + Phase 0 project summary
-- Ask it to output a structured list of Given/When/Then scenarios covering happy path, error cases, and edge cases
+**Delegate this phase** — launch **`@requirements-analyst` subagent** with the approved proposal + Phase 0 project summary + classification from Phase 1.5.
+
+Ask it to output a structured list of Given/When/Then scenarios covering happy path, error cases, and edge cases. **For frontend/full-stack changes, REQUIRE UI scenarios** covering entry point, error states, empty states, loading states, and success feedback. For backend, require scenarios for validation, auth, performance bounds, observability.
 
 Format each requirement as:
 ```markdown

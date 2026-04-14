@@ -1,26 +1,180 @@
-Create a new change directory with just the proposal template. Use this for step-by-step artifact creation.
+Create a new change with a thoughtful, discovery-driven proposal.
 
-**Input**: $ARGUMENTS — change name (kebab-case).
+**Input**: $ARGUMENTS — change name (kebab-case) OR a free-form description OR both.
 
-**Steps**
+**Philosophy**: Before writing any file, understand BOTH the project AND the requirement. A proposal written without context is usually wrong in a way that isn't obvious until Phase 2 of harness:apply — expensive to fix late. Spend the cheap time upfront.
 
-1. Create `changes/$ARGUMENTS/` directory.
+---
 
-2. Create `changes/$ARGUMENTS/proposal.md` with template:
-   ```markdown
-   # Proposal: $ARGUMENTS
+## Phase 0: Discover (REQUIRED — never skip)
 
-   ## Why
-   [Problem or opportunity — 1-2 sentences]
+Build real grounding before touching anything. Phase 0 has **three parallel tracks** — run as many as are applicable. Do NOT settle for just "read package.json and call it a day".
 
-   ## What Changes
-   - [Change 1]
-   - [Change 2]
+### 0a. Project understanding (always)
 
-   ## Impact
-   [Affected code, APIs, dependencies]
+1. **Read `CLAUDE.md`** if it exists — project-specific rules override your defaults
+2. **Identify tech stack** — Glob for `package.json`, `pyproject.toml`, `go.mod`, `Cargo.toml`, `composer.json`, `Gemfile`, etc. Read the first one found.
+3. **Read `README.md`** (first 100 lines if large) for project purpose and domain vocabulary
+4. **Map top-level structure** — `ls` the repo root; for any directory that looks relevant to the user's request, `ls` one level deeper
+5. **Scan existing `changes/`** — see what proposals already exist; the user may be duplicating or extending something
+
+### 0b. Deep codebase search (when request touches existing code)
+
+Simple globbing isn't enough when the request likely intersects existing functionality. Do one or both:
+
+- **Targeted `Grep`** for keywords from the request (e.g., if request is "add rate limiting", grep for `rate|limit|throttle|quota|429`). Follow hits into their call graphs.
+- **Launch the `Explore` subagent** with a narrow, request-specific prompt: *"Map the parts of this codebase relevant to '<user's request>'. Find existing patterns, related modules, and any code that would be affected. Read, don't write. Report back in under 400 words."*
+- For cross-cutting or poorly understood codebases, launch `@deep-research-agent` with the request and ask it to surface architectural context + existing patterns with citations.
+
+**The goal**: know what code already exists that the request would touch, conflict with, or extend. A proposal that says "add JWT auth" without noticing there's already an `auth/session.ts` is a broken proposal.
+
+### 0c. External research (when domain expertise matters)
+
+If the request involves a well-known domain (auth, payments, websockets, caching, migrations, i18n, accessibility, etc.), **actively look up best practices** instead of guessing from training data:
+
+- **`WebSearch`** — search for "<domain> best practices <year>" and "<specific tech> <specific problem>". Prefer recent sources.
+- **`WebFetch`** — read authoritative pages found via WebSearch (official docs, RFCs, well-known engineering blogs).
+- **MCP tools if available**:
+  - **`context7`** — fetch up-to-date library/framework docs on demand. Use this for any library in the project's dependency graph that the change touches.
+  - **`exa`** — deeper semantic search for technical content when WebSearch isn't precise enough.
+  - Other MCP doc/search tools the user has installed — check `/mcp` if unsure.
+- **`@deep-research-agent`** — for comparing approaches, understanding trade-offs, or when the decision space is unclear. It will use WebSearch/WebFetch/MCP tools autonomously and return an evidence-cited report.
+
+**Skip 0c** only when the request is genuinely project-specific with no external domain expertise required (e.g., "rename this internal helper").
+
+### 0d. Synthesize
+
+Write yourself a short memo (don't show the user yet) that answers:
+- What does this project do? What's the stack?
+- What existing code is relevant to this request?
+- What best practices / external context are relevant?
+- Where would a change like this naturally fit?
+- Any obvious risks, conflicts, or existing solutions I should know about?
+
+If all four questions have substantive answers, you're ready for Phase 1. If any are blank, Phase 0 wasn't thorough enough — go back.
+
+---
+
+## Phase 1: Understand the requirement
+
+Parse `$ARGUMENTS` and pick the right path:
+
+### Case A — only a kebab-case name (e.g. `add-user-auth`)
+
+The name alone tells you almost nothing. Use **AskUserQuestion**:
+
+```
+Question: "I see a name '$ARGUMENTS' but need more context. How do you want to proceed?"
+Options:
+  - "I'll describe what I want in a follow-up message"
+  - "It's a small, self-explanatory change — just use the name"
+  - "Actually, let me cancel and explore first (/harness:explore)"
+```
+
+If they pick the first option, wait for their description, then jump to Case C.
+If they pick the second option, proceed to Phase 2 with just the name (proposal will be thin but acceptable for genuinely trivial changes).
+
+### Case B — short/vague description
+
+Fewer than ~20 words, or no concrete behavior/user/outcome mentioned. Use **AskUserQuestion** to drill down on the ambiguous parts. Pick 2-4 of these based on what's missing:
+
+- "**What problem does this solve?** (who hits it, how often)"
+- "**What does 'done' look like?** (concrete user-visible outcome)"
+- "**Scope boundaries** — what's explicitly out of scope?"
+- "**Does it replace or extend** `<existing thing you saw in Phase 0>`?"
+- "**Any constraints** — performance, compatibility, security?"
+
+After answering, if the description is still genuinely complex and ambiguous (multi-subsystem, cross-cutting concerns, unclear trade-offs), **launch the `@requirements-analyst` subagent** with the gathered info to do structured discovery. Wait for its output before drafting.
+
+### Case C — clear, specific description
+
+Proceed directly, but do ONE sanity check against Phase 0: does the requirement **conflict** with anything in the existing project? If yes, flag it in the proposal under "Open questions" or "Alignment risks" — don't silently ignore.
+
+---
+
+## Phase 2: Draft the proposal (in memory — do NOT write the file yet)
+
+Write a proposal that **reflects Phase 0 + Phase 1** findings. Required sections:
+
+```markdown
+# Proposal: <change-name>
+
+## Why
+[The problem, grounded in what the project actually does.
+ Reference concrete pain points, not hypothetical ones.]
+
+## What Changes
+- [Specific change, referencing existing modules/files when relevant]
+- [Another change]
+
+## Impact
+- **Affected code**: [files/modules that will change — use real paths from Phase 0]
+- **APIs**: [what changes for callers]
+- **Dependencies**: [new deps, if any]
+
+## Alignment with project
+[How it fits the existing architecture — reference patterns you saw in Phase 0.
+ If it doesn't fit cleanly, say so here.]
+
+## Research & references
+[2-5 bullet points citing what Phase 0 found externally.
+ Format: "- <claim>: <source URL or agent name>"
+ Example: "- JWT rotation: OWASP Session Management Cheat Sheet (owasp.org/...)"
+ Example: "- Rate limiting via token bucket: Stripe engineering blog (stripe.com/...)"
+ Empty only if 0c was genuinely inapplicable.]
+
+## Open questions
+[Anything unresolved from Phase 1 that needs a decision before specs.
+ Empty if everything is clear.]
+```
+
+**Quality bar**: a good proposal has **3-5 concrete references to existing code** AND **2-5 external references** (when applicable). If either is zero without a good reason, Phase 0 wasn't thorough — go back and research more.
+
+---
+
+## Phase 3: Review before committing (REQUIRED — never skip)
+
+Show the full draft to the user. Then **AskUserQuestion**:
+
+```
+Question: "Proposal draft ready. What next?"
+Options:
+  - "Looks good, create the change"
+  - "Let me revise it — I'll tell you what to change"
+  - "Abandon, this isn't what I want"
+```
+
+- **"Looks good"** → proceed to Phase 4
+- **"Revise"** → take the user's feedback and loop back to Phase 2. After revising, re-run Phase 3.
+- **"Abandon"** → stop. Don't write anything. Don't commit.
+
+---
+
+## Phase 4: Create the change
+
+Only reach this phase after Phase 3 approval.
+
+1. Create `changes/<name>/` directory
+2. Write the approved draft to `changes/<name>/proposal.md`
+3. Git commit:
+   ```bash
+   git add changes/<name>/
+   git commit -m "propose: <name>"
+   ```
+4. Tell the user:
+   ```
+   ✓ Change created: changes/<name>/
+   Next steps:
+     /harness:continue to generate specs.md (requirements-analyst can help)
+     /harness:review later to check spec quality before implementation
    ```
 
-3. Git commit.
+---
 
-4. Tell the user: "Change created. Use /harness:continue to build the next artifact (specs, design, tasks), or edit proposal.md first."
+## Rules
+
+- **Never skip Phase 0.** If you can't find anything useful to read, explicitly say "Project context is minimal, proceeding with limited grounding" — don't pretend you understood.
+- **Never skip Phase 3.** Writing files is cheap; rewriting bad files is expensive. The review gate is the point.
+- **Only write `proposal.md` in Phase 4.** This command creates proposal only. Specs/design/tasks come via `/harness:continue`.
+- **If `$ARGUMENTS` is empty**, start Phase 1 by asking: "What do you want to build?" — don't guess a name.
+- **If a change with the same name already exists**, stop and ask the user whether to use a different name, extend the existing one, or abort.

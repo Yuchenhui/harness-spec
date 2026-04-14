@@ -164,6 +164,36 @@ function validateSpecs() {
     return;
   }
 
+  // Capability metadata — required for archive-time baseline merge.
+  // Two valid forms:
+  //   Form A (single-capability):   "**Capability**: <name>" line near the top
+  //   Form B (multi-capability):    "## Capability: <name>" section headers
+  const singleCapMatch = content.match(/^\*\*Capability\*\*:\s*([^\n]+)$/m);
+  const multiCapMatches = content.match(/^## Capability:\s*([^\n]+)$/gm) || [];
+
+  if (!singleCapMatch && multiCapMatches.length === 0) {
+    addError('specs.md', 'capability-metadata',
+      'Missing Capability metadata. Add either a "**Capability**: <name>" line near the top (single-capability change) or "## Capability: <name>" section headers (multi-capability). This is what /harness:archive uses to merge specs into harness/specs/ baseline.');
+  } else if (singleCapMatch && multiCapMatches.length > 0) {
+    addWarning('specs.md', 'capability-metadata-mixed',
+      'specs.md uses both "**Capability**:" (single form) AND "## Capability:" headers (multi form). Pick one: the single form for changes touching one capability, the multi form for cross-cutting changes.');
+  } else if (singleCapMatch) {
+    const capName = singleCapMatch[1].replace(/[*_`]/g, '').trim();
+    if (!/^[a-z0-9][a-z0-9-]*$/.test(capName)) {
+      addWarning('specs.md', 'capability-kebab-case',
+        `Capability name "${capName}" is not kebab-case. Prefer lowercase with hyphens (e.g. "rate-limiting", "auth", "user-profile") — they map directly to file names in harness/specs/.`);
+    }
+  } else {
+    // Multi-capability form
+    for (const match of multiCapMatches) {
+      const capName = match.replace(/^## Capability:\s*/, '').replace(/[*_`]/g, '').trim();
+      if (!/^[a-z0-9][a-z0-9-]*$/.test(capName)) {
+        addWarning('specs.md', 'capability-kebab-case',
+          `Capability name "${capName}" is not kebab-case. Prefer lowercase with hyphens.`);
+      }
+    }
+  }
+
   const requirementHeaders = content.match(/^### Requirement:/gm) || [];
   if (requirementHeaders.length === 0) {
     addError('specs.md', 'has-requirement',

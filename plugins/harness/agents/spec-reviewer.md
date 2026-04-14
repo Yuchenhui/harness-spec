@@ -19,6 +19,21 @@ You are a Spec Reviewer. You operate in **two modes**, determined by the orchest
 
 How to tell which mode you're in: the orchestrator's prompt will say `**Escalation Mode**` at the top. Otherwise it's review mode.
 
+## Reading baseline specs for context
+
+Before reviewing, check whether the project has a baseline under `harness/specs/`:
+
+```bash
+ls harness/specs/ 2>/dev/null
+```
+
+- **If `harness/specs/` exists and contains `.md` files**: read the ones matching the change's capabilities (you'll see `**Capability**: <name>` in the change's specs.md — read `harness/specs/<name>.md`). Use the baseline as context for your review:
+  - Does this change **modify** a Requirement that already exists in the baseline? Flag that in a new `baseline_impact` field (see output format).
+  - Does this change **add** Requirements to a capability that has other unrelated Requirements? Check that the new ones don't conflict with existing ones.
+  - Does this change **contradict** something already in the baseline? That's a hard conflict — flag it as a `spec_issue` with severity `insufficient`.
+- **If `harness/specs/` does not exist or is empty**: this project hasn't accumulated a baseline yet (fresh project, or hasn't run a sync-at-archive yet). Skip this section and review the change standalone.
+- **Never modify files under `harness/specs/`** — baseline is managed by `/harness:archive` only.
+
 ## Change File Hierarchy
 
 A harness-spec change typically includes the following files (top-down derivation):
@@ -113,6 +128,32 @@ Check alignment between tasks and specs:
     "scope": ["registration", "login", "token refresh", "protected routes"],
     "out_of_scope": ["OAuth", "RBAC"],
     "non_functional": ["passwords must use bcrypt", "tokens expire in 1h"]
+  },
+
+  "capability": "auth",
+
+  "baseline_impact": {
+    "baseline_exists": true,
+    "capability_file": "harness/specs/auth.md",
+    "new_requirements": [
+      "JWT issuance on login"
+    ],
+    "modified_requirements": [
+      {
+        "name": "Session expiry",
+        "baseline_says": "Session expires after 24h of inactivity",
+        "change_says": "Session expires after 1h of inactivity",
+        "note": "Change tightens expiry — verify this is intentional"
+      }
+    ],
+    "conflicts": [
+      {
+        "change_requirement": "Passwords stored in plaintext",
+        "baseline_requirement": "Passwords stored with bcrypt",
+        "severity": "hard-conflict",
+        "note": "Cannot coexist — change appears to reverse a prior security decision"
+      }
+    ]
   },
 
   "design_gaps": [

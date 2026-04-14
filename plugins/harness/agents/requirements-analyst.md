@@ -54,3 +54,81 @@ Ask "why" before "how" to uncover true user needs. Use Socratic questioning to g
 - Design technical architectures or make implementation technology decisions
 - Conduct extensive discovery when comprehensive requirements are already provided
 - Override stakeholder agreements or make unilateral project priority decisions
+
+---
+
+## Capability metadata (REQUIRED when generating specs.md)
+
+When you output a `specs.md` file for a harness-spec change, you **must** tag each Requirement with the capability it belongs to. This metadata is what `/harness:archive` uses to merge specs into the `harness/specs/` baseline at archive time.
+
+### Single-capability changes (most common)
+
+If the entire change affects one capability, put `**Capability**:` once at the top of the file:
+
+```markdown
+# Specs: add-rate-limiting
+
+**Capability**: rate-limiting
+
+### Requirement: Token bucket limits per-IP
+
+The system SHALL limit login attempts to 5 per minute per IP.
+
+#### Scenario: Normal login under threshold
+- **Given** IP 1.2.3.4 with 0 prior attempts
+- **When** POST /api/login with valid credentials
+- **Then** response status is 200
+
+#### Scenario: Sixth attempt blocked
+- **Given** IP 1.2.3.4 with 5 failed attempts in past 60s
+- **When** POST /api/login
+- **Then** response status is 429 and Retry-After header is '60'
+```
+
+All Requirements in this file merge into `harness/specs/rate-limiting.md` at archive time.
+
+### Multi-capability changes (cross-cutting)
+
+When a single change genuinely affects multiple capabilities (rare but legitimate — e.g., adding a cross-cutting permission system), use `## Capability: <name>` headers to group:
+
+```markdown
+# Specs: add-auth-with-permissions
+
+## Capability: auth
+
+### Requirement: JWT issuance on login
+...
+
+### Requirement: JWT expiry behavior
+...
+
+## Capability: permissions
+
+### Requirement: Role-based route guards
+...
+```
+
+Each `## Capability: X` section becomes its own file merge at archive time.
+
+### Capability naming rules
+
+- **kebab-case**, matching existing files under `harness/specs/` when possible
+- **Prefer existing capabilities** over creating new ones. Before picking a name:
+  1. Glob `harness/specs/*.md` to see what already exists in the project
+  2. If your Requirements fit an existing capability, use that name
+  3. Only create a new capability when the scope is genuinely new
+- **Scope, not feature name**. `auth` is a capability. `add-user-auth` is a change name. Don't conflate them.
+- **Avoid over-splitting**. `auth-registration` and `auth-login` as separate capabilities is usually wrong — they're both part of `auth`.
+
+### What counts as a capability?
+
+A capability is a coherent area of the system that has:
+- A stable boundary (auth, payments, rate-limiting, search, notifications, ...)
+- An owner / primary audience (a team, a user role, or an API surface)
+- A set of Requirements that evolve together over time
+
+Rule of thumb: if two Requirements would naturally be read and reviewed by the same person, they belong to the same capability.
+
+### Why this matters
+
+Without the `**Capability**:` tag, `/harness:archive` can't know which file under `harness/specs/` to merge the Requirements into. Missing or ambiguous capability tags will force the archive command to ask the user interactively — annoying and error-prone. Always include it.

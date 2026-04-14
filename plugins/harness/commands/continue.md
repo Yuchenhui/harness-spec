@@ -4,14 +4,18 @@ Continue building artifacts for an existing change, one step at a time. Each art
 
 **Philosophy**: `/harness:continue` is the step-by-step alternative to `/harness:propose`. It generates ONE missing artifact per invocation, so users can review each piece, think, and optionally revise before moving on. Discovery and delegation still apply — the orchestrator never dumps a template.
 
-**IMPORTANT — harness-spec is NOT OpenSpec.** If the project has an `openspec/` directory, ignore it completely. Do not read `openspec/changes/`, do not run `npx openspec` commands, do not validate against OpenSpec schemas. Harness changes live only in `changes/` at the repo root.
+**Where changes live**: harness-spec stores its artifacts under `harness/` at the repo root (`harness/changes/<name>/`). Older versions used `changes/<name>/` at the repo root, which is still supported for backward compat. harness-spec coexists with OpenSpec — we never touch `openspec/`, never invoke `npx openspec` commands.
 
 ---
 
 ## Step 1: Locate the change
 
-1. If `$ARGUMENTS` was given, look for `changes/$ARGUMENTS/` at repo root. If not found, stop and tell the user. **Do not search in `openspec/changes/`** — even if a directory with the same name exists there, it belongs to a different workflow.
-2. If `$ARGUMENTS` is empty, scan `changes/` (repo root only, not `openspec/changes/`) for directories. If exactly one exists and isn't archived, use that one. If multiple, use **AskUserQuestion** to pick.
+1. If `$ARGUMENTS` was given, look for the change directory in priority order:
+   - `harness/changes/$ARGUMENTS/` (canonical, v0.12+)
+   - `changes/$ARGUMENTS/` (legacy pre-v0.12)
+   If neither exists, stop and tell the user. We do NOT look in `openspec/` — that's OpenSpec's territory.
+2. If `$ARGUMENTS` is empty, scan both `harness/changes/` and `changes/` for active (non-archived) directories. If exactly one exists, use it. If multiple, use **AskUserQuestion** to pick.
+3. Bind the found path to `<change-dir>` for use in later steps.
 3. Read all existing artifacts in the change directory (`proposal.md`, `specs.md`, `design.md`, `tasks.md` — whichever are present). You'll need them as context for the next artifact.
 
 ---
@@ -52,7 +56,7 @@ Even in continue mode, never skip discovery. But the scope depends on what you a
 Delegate to **`@requirements-analyst`** with this prompt:
 
 ---
-Read `changes/<name>/proposal.md` for scope and context. Generate a complete `specs.md` in Given/When/Then format.
+Read `<change-dir>/proposal.md` for scope and context. Generate a complete `specs.md` in Given/When/Then format.
 
 Classification (from proposal): <classification>
 
@@ -116,7 +120,7 @@ Pick specialists based on the **Classification** field in proposal.md (set in Ph
 Delegate with this prompt:
 
 ---
-Read `changes/<name>/proposal.md` and `changes/<name>/specs.md` for context. Generate a complete `design.md`.
+Read `<change-dir>/proposal.md` and `<change-dir>/specs.md` for context. Generate a complete `design.md`.
 
 Required sections:
 - Context (why this approach given constraints)
@@ -163,10 +167,10 @@ Options:
 
 ## Step 6: Write and commit
 
-1. Write the approved draft to `changes/<name>/<target>.md`
+1. Write the approved draft to `<change-dir>/<target>.md`
 2. Git commit:
    ```bash
-   git add changes/<name>/<target>.md
+   git add <change-dir>/<target>.md
    git commit -m "<target>: <name>"
    ```
    (e.g., `"specs: add-user-auth"`, `"design: add-user-auth"`, `"tasks: add-user-auth"`)
@@ -174,7 +178,7 @@ Options:
 3. Tell the user what was created and what's next:
 
    ```
-   ✓ Created: changes/<name>/<target>.md
+   ✓ Created: <change-dir>/<target>.md
      {summary — e.g., "5 requirements, 18 scenarios"}
 
    Next:

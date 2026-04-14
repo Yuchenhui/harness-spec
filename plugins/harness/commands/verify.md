@@ -2,7 +2,7 @@ Verify that an implementation matches its specs, design, and tasks. Final gate b
 
 **Input**: $ARGUMENTS — change name (optional, auto-detect).
 
-**IMPORTANT — harness-spec is NOT OpenSpec.** Only look for changes under `changes/` at the repo root. Do not read `openspec/changes/`, do not run `npx openspec` commands, do not validate against OpenSpec schemas.
+**Where changes live**: harness-spec uses `harness/changes/<name>/` (canonical v0.12+) or `changes/<name>/` (legacy). harness-spec coexists with OpenSpec — never touches `openspec/`.
 
 ---
 
@@ -10,14 +10,17 @@ Verify that an implementation matches its specs, design, and tasks. Final gate b
 
 ### 1. Locate the change
 
-1. Find `changes/<name>/` at the repo root. If `$ARGUMENTS` is empty, auto-detect the most recently-modified active change under `changes/` (ignoring `openspec/changes/`) or use **AskUserQuestion** to pick.
+1. Look for the change directory in priority order:
+   - `harness/changes/<name>/` (canonical)
+   - `changes/<name>/` (legacy)
+   If `$ARGUMENTS` is empty, auto-detect the most recently-modified active change under either path, or use **AskUserQuestion** to pick. Bind to `<change-dir>`.
 2. Read all artifacts: `proposal.md`, `specs.md`, `design.md` (if present), `tasks.md`, `feature_tests.json` (if present).
 
 ### 2. Schema compliance — Layer 1 validator (pre-flight, blocking)
 
 Run the schema validator as the first dimension of verification:
 ```bash
-node ${CLAUDE_PLUGIN_ROOT}/scripts/validate.js changes/$ARGUMENTS --json
+node ${CLAUDE_PLUGIN_ROOT}/scripts/validate.js <change-dir> --json
 ```
 - Parse the JSON result.
 - **If errors > 0**: this is a CRITICAL issue. Flag every error in the final report. Verify fails regardless of other dimensions — the change cannot be archived with a structurally broken set of artifacts.
@@ -85,7 +88,7 @@ Wait for all launched agents to return before proceeding.
 
 ### 8. Lessons learned (if evaluations/ dir exists)
 
-If `changes/<name>/evaluations/` has evaluator reports from the apply loop, scan them for recurring fix patterns and suggest rules for the user's CLAUDE.md. Example:
+If `<change-dir>/evaluations/` has evaluator reports from the apply loop, scan them for recurring fix patterns and suggest rules for the user's CLAUDE.md. Example:
 
 ```
 ## Lessons from this change

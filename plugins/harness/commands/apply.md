@@ -21,7 +21,17 @@ Before anything else, quickly verify the project is in a healthy state:
 ```bash
 git status --short
 node ${CLAUDE_PLUGIN_ROOT}/scripts/worktree.js prune
-node ${CLAUDE_PLUGIN_ROOT}/scripts/validate.js changes/$ARGUMENTS --json
+```
+
+**Locate the change directory** — use the first path that exists:
+1. `harness/changes/$ARGUMENTS/` (canonical path, v0.12+)
+2. `changes/$ARGUMENTS/` (legacy path, pre-v0.12 — still supported for backward compat)
+
+All subsequent steps use `<change-dir>` to refer to whichever path was found. When creating a new change, always use `harness/changes/<name>/`.
+
+Then run schema validation on the located change directory:
+```bash
+node ${CLAUDE_PLUGIN_ROOT}/scripts/validate.js <change-dir> --json
 ```
 - If there are uncommitted changes: warn the user "Uncommitted changes detected. Commit or stash before starting harness."
 - If a previous `.claude/harness-active` exists: ask "A previous harness session was interrupted. Resume it or start fresh?"
@@ -36,16 +46,18 @@ For long-running unattended use, you have two options:
 1. Pass `--yes` to auto-accept reviewer suggestions (see INTERACTIVE=false branch in step 4)
 2. Pre-create `feature_tests.json` manually; `/harness:apply` will detect it and skip to Phase 2
 
-1. Locate the change directory. Search in priority order:
-   - `changes/$ARGUMENTS/tasks.md` (at repo root only)
-   - If not found, ask the user where tasks.md is located
+1. Locate the change directory using the same priority as pre-flight:
+   - `harness/changes/$ARGUMENTS/tasks.md` (canonical)
+   - `changes/$ARGUMENTS/tasks.md` (legacy fallback)
+   - If neither is found, ask the user where tasks.md is located
 
-   **IMPORTANT — do NOT look in `openspec/` or invoke `npx openspec`.** If the project has an `openspec/` directory, it belongs to a separate OpenSpec workflow that harness-spec does not support or interoperate with. Do not read `openspec/changes/`, do not run `npx openspec validate`, do not run any `openspec` CLI command. Harness changes live **only** in `changes/` at the repo root. If the user references a change name that exists only under `openspec/changes/`, stop and tell them: *"harness-spec and OpenSpec are separate workflows. The change `$ARGUMENTS` appears to be an OpenSpec change under `openspec/changes/`. Please use OpenSpec's own tools for it, or create a new harness change under `changes/`."*
+   **harness-spec coexists peacefully with OpenSpec.** If the project has an `openspec/` directory, it belongs to OpenSpec and we do not touch it — no reading `openspec/changes/`, no running `npx openspec` commands. harness-spec's own files live under `harness/` (canonical) or `changes/` (legacy) at the repo root. The two workflows are independent and can coexist in the same project without collision.
 
 2. Write the feature_tests.json path to `.claude/harness-active`:
    ```bash
-   echo "changes/$ARGUMENTS/feature_tests.json" > .claude/harness-active
+   echo "<change-dir>/feature_tests.json" > .claude/harness-active
    ```
+   (substitute `<change-dir>` with the path you found in step 1)
 
 3. Check whether `feature_tests.json` already exists (in the same directory):
    - If it exists and some entries have passes=true -> skip Phase 0 and Phase 1, enter recovery mode (Phase 2)
@@ -81,7 +93,7 @@ For long-running unattended use, you have two options:
    - If any `spec_issues` have severity `insufficient` AND no `suggested_replacement` → STOP and ask user
    - If `task_alignment.specs_without_tasks` has entries AND these would require new tasks → STOP and ask user (changing tasks.md is too risky to automate)
 
-   **Audit log**: Write ALL auto-decisions to `changes/{change-id}/review-decisions.json`:
+   **Audit log**: Write ALL auto-decisions to `<change-dir>/review-decisions.json`:
    ```json
    {
      "timestamp": "<ISO8601>",
@@ -278,7 +290,7 @@ For long-running unattended use, you have two options:
 
 6. Git commit all initialization files:
    ```bash
-   git add changes/$ARGUMENTS/ tests/
+   git add <change-dir>/ tests/
    git commit -m "harness: initialize verification material for $ARGUMENTS"
    ```
 
@@ -393,7 +405,7 @@ You are a QA engineer.
 WORKING DIRECTORY: {WORKTREE_PATH}
 Start services from the worktree: `cd {WORKTREE_PATH} && {setup_command}`
 Take screenshots per the screenshots configuration: {browser_verification.screenshots}
-Save screenshots in changes/$ARGUMENTS/evaluations/screenshots/
+Save screenshots in <change-dir>/evaluations/screenshots/
 
 Output STATUS: NEEDS_HUMAN_REVIEW
 Include the list of screenshot paths.

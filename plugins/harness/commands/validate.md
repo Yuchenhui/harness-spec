@@ -4,7 +4,7 @@ Run schema validation on a change's artifacts. Fast, deterministic, LLM-free. La
 
 **What this command does**: runs `scripts/validate.js` to check structural and format compliance across `proposal.md`, `specs.md`, `design.md`, `tasks.md`, and `feature_tests.json` (if present). Takes milliseconds, no LLM calls, no API cost. Catches mechanical errors that would otherwise only surface in `/harness:apply` Phase 1 or Phase 2.
 
-**IMPORTANT — harness-spec is NOT OpenSpec.** Only look for changes under `changes/` at the repo root. Do not read `openspec/changes/`, do not run `npx openspec` commands.
+**Where changes live**: harness-spec uses `harness/changes/<name>/` (canonical v0.12+) or `changes/<name>/` (legacy). harness-spec coexists with OpenSpec — never touches `openspec/`.
 
 ---
 
@@ -12,20 +12,24 @@ Run schema validation on a change's artifacts. Fast, deterministic, LLM-free. La
 
 ### 1. Locate the change
 
-1. If `$ARGUMENTS` is given, use `changes/$ARGUMENTS/`. If not found, stop and tell the user.
-2. If `$ARGUMENTS` is empty, scan `changes/` at repo root for active (non-archived) changes. Use exactly one, or use **AskUserQuestion** to pick if multiple.
+1. If `$ARGUMENTS` is given, look for the change in priority order:
+   - `harness/changes/$ARGUMENTS/` (canonical)
+   - `changes/$ARGUMENTS/` (legacy)
+   If neither exists, stop and tell the user.
+2. If `$ARGUMENTS` is empty, scan both `harness/changes/` and `changes/` at repo root for active (non-archived) changes. Use exactly one, or use **AskUserQuestion** to pick if multiple.
+3. Bind the resolved path to `<change-dir>` for the rest of the steps.
 
 ### 2. Run the validator
 
 ```bash
-node ${CLAUDE_PLUGIN_ROOT}/scripts/validate.js changes/<change-id>
+node ${CLAUDE_PLUGIN_ROOT}/scripts/validate.js <change-dir>
 ```
 
 Capture stdout and exit code.
 
 For programmatic / structured handling, use `--json`:
 ```bash
-node ${CLAUDE_PLUGIN_ROOT}/scripts/validate.js changes/<change-id> --json
+node ${CLAUDE_PLUGIN_ROOT}/scripts/validate.js <change-dir> --json
 ```
 
 ### 3. Report to the user

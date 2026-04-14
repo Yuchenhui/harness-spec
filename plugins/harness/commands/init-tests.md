@@ -4,7 +4,7 @@ Generate test skeletons from specs before coding begins (TDD red phase). Delegat
 
 Usually invoked automatically by `/harness:apply` Phase 1. Run it manually when you want to inspect or iterate on the generated tests *before* starting implementation — useful when you're unsure whether the specs will produce good tests.
 
-**IMPORTANT — harness-spec is NOT OpenSpec.** Only look for changes under `changes/` at the repo root. Do not read `openspec/changes/`, do not run `npx openspec` commands.
+**Where changes live**: harness-spec uses `harness/changes/<name>/` (canonical v0.12+) or `changes/<name>/` (legacy). harness-spec coexists with OpenSpec — never touches `openspec/`.
 
 ---
 
@@ -12,8 +12,12 @@ Usually invoked automatically by `/harness:apply` Phase 1. Run it manually when 
 
 ### 1. Locate the change
 
-1. If `$ARGUMENTS` is given, use `changes/$ARGUMENTS/` at the repo root. If not found, stop.
-2. If `$ARGUMENTS` is empty, scan `changes/` (repo root only, not `openspec/changes/`) for active (non-archived) changes. Use exactly one, or use **AskUserQuestion** to pick.
+1. If `$ARGUMENTS` is given, look for the change in priority order:
+   - `harness/changes/$ARGUMENTS/` (canonical)
+   - `changes/$ARGUMENTS/` (legacy)
+   If neither exists, stop.
+2. If `$ARGUMENTS` is empty, scan both paths for active (non-archived) changes. Use exactly one, or use **AskUserQuestion** to pick.
+3. Bind to `<change-dir>` for the rest of the flow.
 3. Verify required artifacts exist: `proposal.md`, `specs.md`, `tasks.md`. `design.md` is optional but recommended.
 4. Check for existing `feature_tests.json`:
    - **If it exists and has `passes: true` entries** → STOP. Tell the user: "feature_tests.json already has passing tasks. Running init-tests would overwrite verification state. Use /harness:apply to continue, or delete feature_tests.json to regenerate from scratch."
@@ -58,13 +62,13 @@ Wait for the initializer to finish before proceeding.
 
 After the initializer reports back:
 
-1. Confirm `changes/<id>/feature_tests.json` exists and parses as valid JSON
+1. Confirm `<change-dir>/feature_tests.json` exists and parses as valid JSON
 2. Confirm every spec scenario listed in specs.md has at least one corresponding test
 3. Confirm every task has an `evaluation_rubric` with at least one criterion
 4. **Run the generated tests to confirm they all currently FAIL** (TDD red phase):
    ```bash
    # Pick the appropriate runner for the stack, e.g.:
-   pytest changes/<id>/tests/ -v --tb=short
+   pytest <change-dir>/tests/ -v --tb=short
    # or
    npm test -- --listTests; npm test
    ```
@@ -73,7 +77,7 @@ After the initializer reports back:
 ### 4. Git commit
 
 ```bash
-git add changes/<id>/ tests/ conftest.py  # or equivalent
+git add <change-dir>/ tests/ conftest.py  # or equivalent
 git commit -m "init-tests: <change-id>"
 ```
 

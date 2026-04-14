@@ -8,7 +8,17 @@ Propose a new change. Create proposal + specs + design + tasks in one guided pas
 - `/harness:propose` → you already know roughly what you want and are willing to go through all four artifacts now
 - `/harness:new` → you want to create the proposal, think about it, maybe explore more, then come back later via `/harness:continue` for specs/design/tasks
 
-**IMPORTANT — harness-spec is NOT OpenSpec.** If the project has an `openspec/` directory, ignore it completely. Do not read `openspec/changes/`, do not run `npx openspec` commands, do not validate against OpenSpec schemas. Harness changes live only in `changes/` at the repo root. If the user is on an OpenSpec project and wants harness workflow, they should create a new harness change under `changes/` — the two workflows do not interoperate.
+**Where changes live**: harness-spec stores all its artifacts under `harness/` at the repo root:
+```
+harness/
+├── specs/           ← baseline (accumulated source of truth)
+└── changes/         ← active and archived change proposals
+    ├── <name>/      ← this command creates one of these
+    └── archive/
+```
+harness-spec coexists peacefully with OpenSpec. If the project has an `openspec/` directory, we do not touch it — different workflow, different tool. Do not read `openspec/`, do not invoke `npx openspec` commands. The two tools can live in the same repo without collision.
+
+**Legacy path**: older harness-spec versions used `changes/` at the repo root. Existing `changes/<name>/` directories are still discovered for continuity, but new changes are always created under `harness/changes/`.
 
 ---
 
@@ -22,7 +32,7 @@ Same three-track discovery as `/harness:new` Phase 0. Because `/harness:propose`
 2. Identify tech stack via `package.json` / `pyproject.toml` / `go.mod` / etc.
 3. Read `README.md` (first 100 lines) for project purpose + domain vocabulary
 4. Map top-level directory structure; `ls` one level deeper into dirs relevant to the request
-5. Scan existing `changes/` to avoid duplication
+5. Scan existing changes (`harness/changes/` canonical; fall back to `changes/` for legacy projects) to avoid duplication
 
 ### 0b. Deep codebase search (when request touches existing code)
 
@@ -295,7 +305,7 @@ Each task's description should point to the spec scenarios it implements — thi
 
 Only reach this phase after all previous review gates passed.
 
-1. Create `changes/<name>/` directory
+1. Create `harness/changes/<name>/` directory (creates `harness/` + `harness/changes/` if they don't exist yet)
 2. Write:
    - `proposal.md`
    - `specs.md`
@@ -303,12 +313,12 @@ Only reach this phase after all previous review gates passed.
    - `tasks.md`
 3. Git commit:
    ```bash
-   git add changes/<name>/
+   git add harness/changes/<name>/
    git commit -m "propose: <name>"
    ```
 4. Tell the user:
    ```
-   ✓ Change created: changes/<name>/
+   ✓ Change created: harness/changes/<name>/
      - proposal.md
      - specs.md ({N} requirements, {M} scenarios)
      - design.md  (if present)

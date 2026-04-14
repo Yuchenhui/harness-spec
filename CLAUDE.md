@@ -16,12 +16,39 @@ Claude Code plugin for harness engineering — verified, recoverable, self-heali
 ## Plugin Structure
 
 ```
-agents/       — 4 core + 16 specialist agent definitions
-commands/     — harness-apply orchestrator + git-commit
-hooks/        — Node.js hook scripts + hooks.json
-docs/         — Documentation
-.claude-plugin/ — Plugin manifest
+plugins/harness/
+├── .claude-plugin/   — Plugin manifest
+├── agents/           — 4 core + 16 specialist agent definitions
+├── commands/         — 11 slash commands (propose, new, apply, ...)
+├── hooks/            — Node.js hook scripts + hooks.json
+├── scripts/          — validate.js, worktree.js, merge-specs.js (planned)
+└── rubrics/          — example custom rubrics for .claude/harness-rubrics/
 ```
+
+## User-Project Layout (when plugin is installed and used)
+
+harness-spec creates and manages all its artifacts under a single top-level `harness/` directory in the user's project:
+
+```
+harness/
+├── specs/                          — baseline specs (accumulated source of truth, Level 1)
+│   ├── auth.md
+│   └── payments.md
+└── changes/
+    ├── <name>/                     — active change
+    │   ├── proposal.md
+    │   ├── specs.md
+    │   ├── design.md
+    │   ├── tasks.md
+    │   ├── feature_tests.json
+    │   └── evaluations/
+    └── archive/
+        └── YYYY-MM-DD-<name>/      — archived change
+```
+
+**Legacy path**: versions before 0.12 stored changes at `changes/` in the repo root. Still supported as a fallback for backward compatibility; new changes always go under `harness/changes/`.
+
+**Coexistence with OpenSpec**: harness-spec does not read, write, or invoke anything under `openspec/`. If a project has both installed, they run independently.
 
 ## Agent Roles
 

@@ -226,7 +226,7 @@ Upon completion, report what was generated:
 Initialization complete:
 
 Generated files:
-  - changes/<id>/feature_tests.json (6 tasks, levels: 2xL2, 2xL3, 1xL4, 1xL5)
+  - <change-dir>/feature_tests.json (6 tasks, levels: 2xL2, 2xL3, 1xL4, 1xL5)
   - tests/models/test_user.py (3 test functions)
   - tests/api/test_auth.py (7 test functions)
   - tests/contracts/auth_register.json (3 cases)

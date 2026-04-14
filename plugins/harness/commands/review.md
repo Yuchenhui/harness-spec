@@ -2,15 +2,18 @@ Review and strengthen specs before implementation. Interactive quality gate.
 
 **Input**: $ARGUMENTS — change name (optional, auto-detect).
 
-**IMPORTANT — harness-spec is NOT OpenSpec.** Only look for changes under `changes/` at the repo root. Do not read `openspec/changes/`, do not run `npx openspec` commands, do not validate against OpenSpec schemas.
+**Where changes live**: harness-spec uses `harness/changes/<name>/` (canonical) or `changes/<name>/` (legacy pre-v0.12, still supported for backward compat). harness-spec coexists with OpenSpec — never touches `openspec/`.
 
 **Steps**
 
-1. Find the change directory under `changes/` at the repo root. Read all artifacts: proposal.md, design.md (if exists), specs.md, tasks.md.
+1. Locate the change directory in priority order:
+   - `harness/changes/$ARGUMENTS/` (canonical)
+   - `changes/$ARGUMENTS/` (legacy fallback)
+   Bind to `<change-dir>`. Read all artifacts: proposal.md, design.md (if exists), specs.md, tasks.md.
 
 2. **Layer 1 pre-check — run the schema validator first** (fast, deterministic, LLM-free):
    ```bash
-   node ${CLAUDE_PLUGIN_ROOT}/scripts/validate.js changes/$ARGUMENTS --json
+   node ${CLAUDE_PLUGIN_ROOT}/scripts/validate.js <change-dir> --json
    ```
    - Parse the JSON output.
    - **If validation fails (exit 1, errors present)**: STOP. Do NOT launch spec-reviewer yet — it would waste an expensive LLM call on structurally broken files. Present the errors to the user via AskUserQuestion: "Schema validation failed with N errors. Fix them now, skip validation and run spec-reviewer anyway, or abort?" Default: Fix now. Walk through each error, offer fixes, then re-run validate until clean.
@@ -39,7 +42,7 @@ Review and strengthen specs before implementation. Interactive quality gate.
 
 7. **Re-run validate** after edits to confirm we didn't break structure while strengthening content:
    ```bash
-   node ${CLAUDE_PLUGIN_ROOT}/scripts/validate.js changes/$ARGUMENTS
+   node ${CLAUDE_PLUGIN_ROOT}/scripts/validate.js <change-dir>
    ```
    If it now fails (rare but possible), fix immediately before committing.
 

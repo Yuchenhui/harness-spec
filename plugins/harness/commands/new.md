@@ -4,7 +4,17 @@ Create a new change with a thoughtful, discovery-driven proposal.
 
 **Philosophy**: Before writing any file, understand BOTH the project AND the requirement. A proposal written without context is usually wrong in a way that isn't obvious until Phase 2 of harness:apply — expensive to fix late. Spend the cheap time upfront.
 
-**IMPORTANT — harness-spec is NOT OpenSpec.** If the project has an `openspec/` directory, ignore it completely. Do not read `openspec/changes/`, do not run `npx openspec` commands, do not validate against OpenSpec schemas. Harness changes live only in `changes/` at the repo root. If the user is on an OpenSpec project and wants harness workflow, they should create a new harness change under `changes/` — the two workflows do not interoperate.
+**Where changes live**: harness-spec stores all its artifacts under `harness/` at the repo root:
+```
+harness/
+├── specs/           ← baseline (accumulated source of truth)
+└── changes/         ← active and archived change proposals
+    ├── <name>/      ← this command creates one of these
+    └── archive/
+```
+harness-spec coexists peacefully with OpenSpec. If the project has an `openspec/` directory, we do not touch it — different workflow, different tool. Do not read `openspec/`, do not invoke `npx openspec` commands. The two tools can live in the same repo without collision.
+
+**Legacy path**: older harness-spec versions used `changes/` at the repo root. If a project already has `changes/<name>/` directories, this command will still find and use them — but new changes are always created under `harness/changes/`.
 
 ---
 
@@ -18,7 +28,7 @@ Build real grounding before touching anything. Phase 0 has **three parallel trac
 2. **Identify tech stack** — Glob for `package.json`, `pyproject.toml`, `go.mod`, `Cargo.toml`, `composer.json`, `Gemfile`, etc. Read the first one found.
 3. **Read `README.md`** (first 100 lines if large) for project purpose and domain vocabulary
 4. **Map top-level structure** — `ls` the repo root; for any directory that looks relevant to the user's request, `ls` one level deeper
-5. **Scan existing `changes/`** — see what proposals already exist; the user may be duplicating or extending something
+5. **Scan existing changes** — check both `harness/changes/` (canonical) and `changes/` (legacy) — see what proposals already exist; the user may be duplicating or extending something
 
 ### 0b. Deep codebase search (when request touches existing code)
 
@@ -296,16 +306,16 @@ Options:
 
 Only reach this phase after Phase 3 approval.
 
-1. Create `changes/<name>/` directory
-2. Write the approved draft to `changes/<name>/proposal.md`
+1. Create `harness/changes/<name>/` directory (creates `harness/` + `harness/changes/` if they don't exist yet)
+2. Write the approved draft to `harness/changes/<name>/proposal.md`
 3. Git commit:
    ```bash
-   git add changes/<name>/
+   git add harness/changes/<name>/
    git commit -m "propose: <name>"
    ```
 4. Tell the user:
    ```
-   ✓ Change created: changes/<name>/
+   ✓ Change created: harness/changes/<name>/
    Next steps:
      /harness:continue to generate specs.md (requirements-analyst can help)
      /harness:review later to check spec quality before implementation

@@ -102,6 +102,31 @@ git clone -b plugin https://github.com/yuchenhui/harness-spec.git ~/harness-spec
 
 ## Usage
 
+### Directory layout
+
+harness-spec stores all its artifacts under `harness/` at the repo root:
+
+```
+harness/
+├── specs/                          # baseline (accumulated current state)
+│   ├── auth.md
+│   └── payments.md
+└── changes/
+    ├── add-user-auth/              # active change
+    │   ├── proposal.md
+    │   ├── specs.md
+    │   ├── design.md
+    │   ├── tasks.md
+    │   ├── feature_tests.json
+    │   └── evaluations/
+    └── archive/
+        └── 2025-11-04-add-login/   # archived change (frozen copy)
+```
+
+**Coexistence with OpenSpec**: if your project already uses OpenSpec (has an `openspec/` directory), harness-spec runs completely independently. The two tools share no files, no directories, no CLI — they simply live side-by-side in the same repo.
+
+**Legacy path**: versions before 0.12 stored changes at `changes/` in the repo root. Those are still discovered automatically for backward compat. New changes created by `/harness:new` or `/harness:propose` always go under `harness/changes/`.
+
 ### Quick Start (one-step mode)
 
 ```
@@ -224,8 +249,8 @@ Checks performed:
 
 Run it directly:
 ```bash
-node plugins/harness/scripts/validate.js changes/<change-id>
-node plugins/harness/scripts/validate.js changes/<change-id> --json   # structured
+node plugins/harness/scripts/validate.js harness/changes/<change-id>
+node plugins/harness/scripts/validate.js harness/changes/<change-id> --json   # structured
 ```
 
 Or via the slash command (auto-detects the change):

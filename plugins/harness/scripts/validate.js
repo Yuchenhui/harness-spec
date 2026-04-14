@@ -8,8 +8,9 @@
 // Usage:
 //   node validate.js <change-dir>
 //   node validate.js <change-dir> --json
-//   node validate.js changes/add-user-auth
-//   node validate.js changes/add-user-auth --json > report.json
+//   node validate.js harness/changes/add-user-auth       # canonical (v0.12+)
+//   node validate.js changes/add-user-auth               # legacy (pre-v0.12)
+//   node validate.js harness/changes/add-user-auth --json > report.json
 //
 // Exit codes:
 //   0 — valid (0 errors; warnings allowed)
@@ -66,7 +67,7 @@ const changeDir = positional[0];
 
 if (!changeDir) {
   console.error('Usage: node validate.js <change-dir> [--json]');
-  console.error('Example: node validate.js changes/add-user-auth');
+  console.error('Example: node validate.js harness/changes/add-user-auth');
   process.exit(2);
 }
 

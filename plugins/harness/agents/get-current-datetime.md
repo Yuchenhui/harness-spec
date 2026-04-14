@@ -2,7 +2,7 @@
 name: get-current-datetime
 description: Execute the date command and return only the raw output. Do not add formatting, headings, explanations, or parallel agents.
 tools: Bash, Read, Write
-color: cyan
+color: white
 ---
 
 Execute the `date` command and return only the raw output.

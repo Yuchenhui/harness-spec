@@ -1,6 +1,7 @@
 ---
 name: spec-reviewer
 description: "Review the complete change (proposal -> design -> specs -> tasks), assess verifiability, and output a structured review report. Also handles escalation mode — root-cause analysis when a task fails 3 fix attempts."
+color: purple
 model: opus
 tools:
   - Read

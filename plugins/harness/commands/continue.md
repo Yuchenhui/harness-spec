@@ -1,29 +1,154 @@
-Continue building artifacts for an existing change, one step at a time.
+Continue building artifacts for an existing change, one step at a time. Each artifact is delegated to the right specialist agent — the orchestrator only coordinates, it does not draft alone.
 
-**Input**: $ARGUMENTS — change name (optional, auto-detect if only one active change).
+**Input**: $ARGUMENTS — change name (optional, auto-detect if only one active change exists).
 
-**Steps**
+**Philosophy**: `/harness:continue` is the step-by-step alternative to `/harness:propose`. It generates ONE missing artifact per invocation, so users can review each piece, think, and optionally revise before moving on. Discovery and delegation still apply — the orchestrator never dumps a template.
 
-1. Find the change directory. Check what artifacts already exist:
-   - proposal.md exists? → Move to next missing artifact
-   - specs.md missing? → Generate specs from proposal
-   - design.md missing? → Generate design (or skip if simple change)
-   - tasks.md missing? → Generate tasks from specs
+---
 
-2. Generate the NEXT missing artifact only (not all at once).
+## Step 1: Locate the change
 
-3. After generating, show what was created and what's next:
+1. If `$ARGUMENTS` was given, look for `changes/$ARGUMENTS/`. If not found, stop and tell the user.
+2. If `$ARGUMENTS` is empty, scan `changes/` for directories. If exactly one exists and isn't archived, use that one. If multiple, use **AskUserQuestion** to pick.
+3. Read all existing artifacts in the change directory (`proposal.md`, `specs.md`, `design.md`, `tasks.md` — whichever are present). You'll need them as context for the next artifact.
+
+---
+
+## Step 2: Determine the next missing artifact
+
+Order: `proposal → specs → design (optional) → tasks`
+
+Find the first one missing. That's the target.
+
+- If **proposal.md is missing**: something's wrong — `/harness:continue` is for extending existing changes. Tell the user to run `/harness:new` or `/harness:propose` first.
+- If **tasks.md exists**: everything is done. Tell the user to run `/harness:review` (if they haven't) or `/harness:apply` to start implementation.
+- Otherwise: **proceed to Step 3 with the target artifact**.
+
+---
+
+## Step 3: Discovery before generation
+
+Even in continue mode, never skip discovery. But the scope of discovery depends on what you already have:
+
+- **If proposal.md exists**: you already have most of the context. Skim it, note the scope, note the domain.
+- **If Phase 0-style research was already done** (look for "Research & references" section in proposal.md): trust it, but still read relevant code via `Glob` + `Grep` for the specific artifact you're about to generate.
+- **If research is thin**: launch a narrow **Explore subagent** or `@deep-research-agent` to fill the gap BEFORE generating. Don't draft without grounding.
+
+---
+
+## Step 4: Generate the target artifact via the right specialist
+
+### Target = specs.md
+
+Delegate to **`@requirements-analyst`** with this prompt:
+
+---
+Read `changes/<name>/proposal.md` for scope and context. Generate a complete `specs.md` in Given/When/Then format.
+
+Required:
+- Each requirement as `### Requirement: <name>` with at least one `#### Scenario`
+- WHEN/THEN with concrete values (not "valid data" — actual values like 'test@example.com')
+- SHALL/MUST for normative language
+- Include happy path + error cases + edge cases
+- Every design decision from proposal must have a corresponding verifiable scenario
+- If the proposal references best practices or external standards, make those scenarios too
+
+Output the full specs.md content. Do not write the file yourself — the orchestrator will handle that.
+---
+
+When the analyst returns, review the draft yourself for obvious gaps, then proceed to Step 5.
+
+### Target = design.md
+
+Pick the right architect based on the domain (infer from proposal.md):
+
+| Domain signal in proposal | Specialist |
+|---|---|
+| API, database, server, backend service | `@backend-architect` |
+| UI, component, page, form, state management | `@frontend-architect` |
+| Cross-cutting, multi-subsystem, architecture decisions, tech stack choice | `@system-architect` |
+| DevOps, infra, CI/CD, deployment | `@devops-architect` |
+| Security-sensitive (auth, crypto, payments, PII) | `@backend-architect` **AND** `@security-engineer` for review |
+| Performance-critical (caching, throughput, latency) | `@backend-architect` **AND** `@performance-engineer` |
+
+Delegate with this prompt:
+
+---
+Read `changes/<name>/proposal.md` and `changes/<name>/specs.md` for context. Generate a complete `design.md`.
+
+Required sections:
+- Context (why this approach given constraints)
+- Goals / Non-goals
+- Decisions (with rationale for each — name the alternative and why it was rejected)
+- Risks & Trade-offs (honest about what could go wrong)
+- Open questions (anything unresolved)
+
+Reference specific files/modules from the existing codebase when relevant. Do not write the file — the orchestrator will.
+---
+
+When the architect returns, if you launched a second agent (security-engineer, performance-engineer), send them the draft for a review pass and merge feedback before Step 5.
+
+### Target = tasks.md
+
+The orchestrator drafts tasks itself (no specialist needed) — but it must ground every task in the approved specs + design.
+
+Read `proposal.md` + `specs.md` + `design.md` (if present), then draft tasks following these rules:
+- **Each task maps to at least one spec scenario** (list them in the task description)
+- **Each task is small**: <200 lines of diff, <1 hour of work. If bigger, split.
+- **Order by dependency**: setup → core → integration → polish
+- **Checkbox format**: `- [ ] 1.1 Task description`
+- **Number groups**: `## 1. Setup`, `## 2. Core`, etc.
+
+---
+
+## Step 5: Review gate (REQUIRED — never skip)
+
+Show the full draft to the user. Then **AskUserQuestion**:
+
+```
+Question: "<target artifact> draft ready. What next?"
+Options:
+  - "Looks good, save it"
+  - "Revise — I'll tell you what to change"
+  - "Abandon this artifact (don't save)"
+```
+
+- **"Looks good"** → proceed to Step 6
+- **"Revise"** → take the feedback, either re-prompt the specialist with the feedback or revise directly. Re-show and loop Step 5.
+- **"Abandon"** → stop. Don't write the file.
+
+---
+
+## Step 6: Write and commit
+
+1. Write the approved draft to `changes/<name>/<target>.md`
+2. Git commit:
+   ```bash
+   git add changes/<name>/<target>.md
+   git commit -m "<target>: <name>"
    ```
-   ✓ Created: specs.md (12 scenarios)
-   Next: /harness:continue to generate design.md (or skip to tasks)
-         /harness:review to check spec quality before proceeding
+   (e.g., `"specs: add-user-auth"`, `"design: add-user-auth"`, `"tasks: add-user-auth"`)
+
+3. Tell the user what was created and what's next:
+
+   ```
+   ✓ Created: changes/<name>/<target>.md
+     {summary — e.g., "5 requirements, 18 scenarios"}
+
+   Next:
+     /harness:continue  (generates the next missing artifact)
+     /harness:review    (strongly recommended after specs, before tasks)
+     /harness:apply <name>  (start implementation, when all artifacts ready)
    ```
 
-**Artifact generation order**: proposal → specs → design (optional) → tasks
+---
 
-**HARNESS TIP**: After specs are done, run /harness:review before generating tasks. The reviewer will strengthen your specs with concrete values and add missing error/edge cases.
+## Rules
 
-The user can @-mention specialist agents during this process:
-- @requirements-analyst for requirements discovery
-- @backend-architect or @frontend-architect for design
-- @system-architect for architecture decisions
+- **Always delegate specs and design** to specialists. Orchestrator drafts only tasks.md and only after specs + design are approved.
+- **Always run the review gate** before writing the file.
+- **One artifact per invocation.** The user runs `/harness:continue` multiple times.
+- **Research before drafting** if proposal.md didn't already cover it.
+- **If an artifact already exists but is thin/bad**, the user should delete it or use `/harness:review` + manual edits. This command only generates missing artifacts, it doesn't overwrite.
+- **If `$ARGUMENTS` is empty and multiple changes exist**, use AskUserQuestion to pick one.
+- **Users can still @-mention specialists** during the review loop if they want additional review (e.g., `@security-engineer review this design`).

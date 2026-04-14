@@ -1,6 +1,7 @@
 ---
 name: implementation-fixer
 description: "Fix code based on raw test failures. Read test output directly, not evaluator's interpretation. Make only minimal changes. Must not modify test files."
+color: yellow
 model: sonnet
 tools:
   - Bash

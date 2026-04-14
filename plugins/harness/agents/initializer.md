@@ -1,6 +1,7 @@
 ---
 name: verification-initializer
 description: "Transform specs.md into executable verification material: test skeletons, API contracts, browser scenarios. Runs before coding begins."
+color: cyan
 model: opus
 tools:
   - Read

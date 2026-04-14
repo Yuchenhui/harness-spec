@@ -2,9 +2,11 @@ Review and strengthen specs before implementation. Interactive quality gate.
 
 **Input**: $ARGUMENTS — change name (optional, auto-detect).
 
+**IMPORTANT — harness-spec is NOT OpenSpec.** Only look for changes under `changes/` at the repo root. Do not read `openspec/changes/`, do not run `npx openspec` commands, do not validate against OpenSpec schemas.
+
 **Steps**
 
-1. Find the change directory. Read all artifacts: proposal.md, design.md (if exists), specs/, tasks.md.
+1. Find the change directory under `changes/` at the repo root. Read all artifacts: proposal.md, design.md (if exists), specs.md, tasks.md.
 
 2. Launch the **spec-reviewer** agent as a subagent (Task tool). Pass it the change directory path.
 

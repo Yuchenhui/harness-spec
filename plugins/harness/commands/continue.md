@@ -4,12 +4,14 @@ Continue building artifacts for an existing change, one step at a time. Each art
 
 **Philosophy**: `/harness:continue` is the step-by-step alternative to `/harness:propose`. It generates ONE missing artifact per invocation, so users can review each piece, think, and optionally revise before moving on. Discovery and delegation still apply — the orchestrator never dumps a template.
 
+**IMPORTANT — harness-spec is NOT OpenSpec.** If the project has an `openspec/` directory, ignore it completely. Do not read `openspec/changes/`, do not run `npx openspec` commands, do not validate against OpenSpec schemas. Harness changes live only in `changes/` at the repo root.
+
 ---
 
 ## Step 1: Locate the change
 
-1. If `$ARGUMENTS` was given, look for `changes/$ARGUMENTS/`. If not found, stop and tell the user.
-2. If `$ARGUMENTS` is empty, scan `changes/` for directories. If exactly one exists and isn't archived, use that one. If multiple, use **AskUserQuestion** to pick.
+1. If `$ARGUMENTS` was given, look for `changes/$ARGUMENTS/` at repo root. If not found, stop and tell the user. **Do not search in `openspec/changes/`** — even if a directory with the same name exists there, it belongs to a different workflow.
+2. If `$ARGUMENTS` is empty, scan `changes/` (repo root only, not `openspec/changes/`) for directories. If exactly one exists and isn't archived, use that one. If multiple, use **AskUserQuestion** to pick.
 3. Read all existing artifacts in the change directory (`proposal.md`, `specs.md`, `design.md`, `tasks.md` — whichever are present). You'll need them as context for the next artifact.
 
 ---

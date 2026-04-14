@@ -2,13 +2,15 @@ Verify that an implementation matches its specs, design, and tasks. Final gate b
 
 **Input**: $ARGUMENTS — change name (optional, auto-detect).
 
+**IMPORTANT — harness-spec is NOT OpenSpec.** Only look for changes under `changes/` at the repo root. Do not read `openspec/changes/`, do not run `npx openspec` commands, do not validate against OpenSpec schemas.
+
 ---
 
 ## Steps
 
 ### 1. Locate the change
 
-1. Find `changes/<name>/`. If `$ARGUMENTS` is empty, auto-detect the most recently-modified active change or use **AskUserQuestion** to pick.
+1. Find `changes/<name>/` at the repo root. If `$ARGUMENTS` is empty, auto-detect the most recently-modified active change under `changes/` (ignoring `openspec/changes/`) or use **AskUserQuestion** to pick.
 2. Read all artifacts: `proposal.md`, `specs.md`, `design.md` (if present), `tasks.md`, `feature_tests.json` (if present).
 
 ### 2. Completeness — checklist audit

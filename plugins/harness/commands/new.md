@@ -4,6 +4,8 @@ Create a new change with a thoughtful, discovery-driven proposal.
 
 **Philosophy**: Before writing any file, understand BOTH the project AND the requirement. A proposal written without context is usually wrong in a way that isn't obvious until Phase 2 of harness:apply — expensive to fix late. Spend the cheap time upfront.
 
+**IMPORTANT — harness-spec is NOT OpenSpec.** If the project has an `openspec/` directory, ignore it completely. Do not read `openspec/changes/`, do not run `npx openspec` commands, do not validate against OpenSpec schemas. Harness changes live only in `changes/` at the repo root. If the user is on an OpenSpec project and wants harness workflow, they should create a new harness change under `changes/` — the two workflows do not interoperate.
+
 ---
 
 ## Phase 0: Discover (REQUIRED — never skip)

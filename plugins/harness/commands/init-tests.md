@@ -4,14 +4,16 @@ Generate test skeletons from specs before coding begins (TDD red phase). Delegat
 
 Usually invoked automatically by `/harness:apply` Phase 1. Run it manually when you want to inspect or iterate on the generated tests *before* starting implementation — useful when you're unsure whether the specs will produce good tests.
 
+**IMPORTANT — harness-spec is NOT OpenSpec.** Only look for changes under `changes/` at the repo root. Do not read `openspec/changes/`, do not run `npx openspec` commands.
+
 ---
 
 ## Steps
 
 ### 1. Locate the change
 
-1. If `$ARGUMENTS` is given, use `changes/$ARGUMENTS/`. If not found, stop.
-2. If `$ARGUMENTS` is empty, scan `changes/` for active (non-archived) changes. Use exactly one, or use **AskUserQuestion** to pick.
+1. If `$ARGUMENTS` is given, use `changes/$ARGUMENTS/` at the repo root. If not found, stop.
+2. If `$ARGUMENTS` is empty, scan `changes/` (repo root only, not `openspec/changes/`) for active (non-archived) changes. Use exactly one, or use **AskUserQuestion** to pick.
 3. Verify required artifacts exist: `proposal.md`, `specs.md`, `tasks.md`. `design.md` is optional but recommended.
 4. Check for existing `feature_tests.json`:
    - **If it exists and has `passes: true` entries** → STOP. Tell the user: "feature_tests.json already has passing tasks. Running init-tests would overwrite verification state. Use /harness:apply to continue, or delete feature_tests.json to regenerate from scratch."

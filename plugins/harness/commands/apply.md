@@ -35,9 +35,10 @@ For long-running unattended use, you have two options:
 2. Pre-create `feature_tests.json` manually; `/harness:apply` will detect it and skip to Phase 2
 
 1. Locate the change directory. Search in priority order:
-   - `changes/$ARGUMENTS/tasks.md`
-   - `**/changes/$ARGUMENTS/tasks.md`
-   - If neither is found, ask the user where tasks.md is located
+   - `changes/$ARGUMENTS/tasks.md` (at repo root only)
+   - If not found, ask the user where tasks.md is located
+
+   **IMPORTANT — do NOT look in `openspec/` or invoke `npx openspec`.** If the project has an `openspec/` directory, it belongs to a separate OpenSpec workflow that harness-spec does not support or interoperate with. Do not read `openspec/changes/`, do not run `npx openspec validate`, do not run any `openspec` CLI command. Harness changes live **only** in `changes/` at the repo root. If the user references a change name that exists only under `openspec/changes/`, stop and tell them: *"harness-spec and OpenSpec are separate workflows. The change `$ARGUMENTS` appears to be an OpenSpec change under `openspec/changes/`. Please use OpenSpec's own tools for it, or create a new harness change under `changes/`."*
 
 2. Write the feature_tests.json path to `.claude/harness-active`:
    ```bash

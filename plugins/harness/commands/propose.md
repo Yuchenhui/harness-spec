@@ -8,6 +8,8 @@ Propose a new change. Create proposal + specs + design + tasks in one guided pas
 - `/harness:propose` → you already know roughly what you want and are willing to go through all four artifacts now
 - `/harness:new` → you want to create the proposal, think about it, maybe explore more, then come back later via `/harness:continue` for specs/design/tasks
 
+**IMPORTANT — harness-spec is NOT OpenSpec.** If the project has an `openspec/` directory, ignore it completely. Do not read `openspec/changes/`, do not run `npx openspec` commands, do not validate against OpenSpec schemas. Harness changes live only in `changes/` at the repo root. If the user is on an OpenSpec project and wants harness workflow, they should create a new harness change under `changes/` — the two workflows do not interoperate.
+
 ---
 
 ## Phase 0: Discover (REQUIRED — never skip)

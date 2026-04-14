@@ -2,9 +2,11 @@ Archive a completed change.
 
 **Input**: $ARGUMENTS — change name (optional, auto-detect).
 
+**IMPORTANT — harness-spec is NOT OpenSpec.** Only look for changes under `changes/` at the repo root. Do not read, move, or touch anything under `openspec/changes/`.
+
 **Steps**
 
-1. Find the change directory.
+1. Find the change directory under `changes/` at the repo root.
 
 2. Pre-archive checks:
    - All tasks marked complete (- [x])

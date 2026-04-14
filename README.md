@@ -127,6 +127,23 @@ harness/
 
 **Legacy path**: versions before 0.12 stored changes at `changes/` in the repo root. Those are still discovered automatically for backward compat. New changes created by `/harness:new` or `/harness:propose` always go under `harness/changes/`.
 
+### Baseline & archive sync (v0.12+)
+
+harness-spec maintains two tiers of specs:
+
+- **`harness/changes/<name>/specs.md`** — a **change proposal**. Self-contained specs for one focused unit of work. Tagged with `**Capability**: <name>` metadata at the top (or `## Capability: <name>` headers for cross-cutting changes).
+- **`harness/specs/<capability>.md`** — the **baseline**. Authoritative description of "what the system does right now", accumulated over many changes. One file per capability.
+
+When you run `/harness:archive <name>`, harness asks whether to **sync** the change's specs into the baseline:
+
+- **Sync = Yes** → merge each Requirement in the change's specs.md into `harness/specs/<capability>.md`. Same-name Requirements are replaced in-place; new Requirements are appended; untouched baseline Requirements are kept as-is. The change then moves to `harness/changes/archive/<date>-<name>/`.
+- **Sync = No** → only the directory move happens. Baseline untouched. Use this for abandoned or reverted changes.
+- **Dry run** → preview what would be merged before deciding.
+
+The merge engine lives at `plugins/harness/scripts/merge-specs.js`. It's pure Node.js, zero dependencies. Level 1 semantics: **merge-only** (no REMOVED support yet). If a change needs to drop a Requirement from baseline, edit `harness/specs/<cap>.md` manually after archive.
+
+This design was inspired by OpenSpec's baseline/delta mechanism (which uses explicit `ADDED` / `MODIFIED` / `REMOVED` blocks). harness-spec's Level 1 is deliberately simpler — no delta syntax, just full-file Requirements that get merged by name. See [the design discussion](https://github.com/yuchenhui/harness-spec) in the commit history for trade-offs.
+
 ### Quick Start (one-step mode)
 
 ```
